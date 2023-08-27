@@ -17,7 +17,6 @@ import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
 import Filter from '../assets/images/filter.svg';
 import Up from '../assets/images/up.svg';
-import SocialMedia from '../assets/images/socialmedia.svg';
 import axios from 'axios';
 import {APIS} from '../src/configs/apiUrls';
 
@@ -358,7 +357,7 @@ const HomePage = ({navigation}) => {
                 />
               </View>
               <View style={{marginTop: 50}}>
-                <SocialMedia />
+                <Image source={require('../assets/images/socialmedia.png')} style={styles.socialMediaImg} />
               </View>
               <Text style={styles.footerText}>
                 Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
@@ -554,7 +553,7 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     flex: 1,
-    height: 350,
+    height: 380,
     backgroundColor: '#873900',
     marginTop: 20,
     alignItems: 'center',
@@ -677,5 +676,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
     color: '#FFF8F2',
+  },
+  socialMediaImg: {
+    width: 130,
+    height: 70,
+    resizeMode: 'stretch',
   },
 });
