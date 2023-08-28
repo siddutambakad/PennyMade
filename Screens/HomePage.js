@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
@@ -29,7 +29,7 @@ const HomePage = ({navigation}) => {
     type: 'newlyUpdated',
   });
   const items = [
-    {itemName: 'Newest Items', type: 'newluUpdated'},
+    {itemName: 'Newest Items', type: 'newlyUpdated'},
     {itemName: 'Author', type: 'author'},
     {itemName: 'Title', type: 'title'},
     {itemName: 'Price-High', type: 'price_high'},
@@ -40,6 +40,7 @@ const HomePage = ({navigation}) => {
   const [error, setError] = useState('');
   const [collectableData, setCollectableData] = useState({});
   const [loader, setLoader] = useState(true);
+  const totalpages = 20;
 
   useEffect(() => {
     getCatagories();
@@ -52,7 +53,7 @@ const HomePage = ({navigation}) => {
   const getCatagories = async () => {
     setIsLoading(true);
     try {
-      console.log("response",APIS.getCategories);
+      console.log('response', APIS.getCategories);
       let response = await axios.get(APIS.getCategories);
       setCategories(response.data.data);
       setIsLoading(false);
@@ -87,7 +88,9 @@ const HomePage = ({navigation}) => {
   const renderCategories = ({item}) => (
     <View style={styles.cardContent}>
       <Image source={{uri: item.image}} style={styles.cardImage} />
-      <Text style={styles.cardTitle}>{item.title}</Text>
+      <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
+        {item.title}
+      </Text>
       <Text style={styles.cardText}>{item.name}</Text>
     </View>
   );
@@ -141,49 +144,73 @@ const HomePage = ({navigation}) => {
     let data = [
       {
         id: 1,
-        value: page > Math.floor(collectableData.totalpages / 2) ? 1 : page,
+        value: page > Math.floor(totalpages / 2) ? 1 : page,
       },
       {
         id: 2,
         value:
-          page > Math.floor(collectableData.totalpages / 2)
+          page > Math.floor(totalpages / 2)
             ? 2
-            : page + 1 > collectableData.totalpages
+            : page + 1 > totalpages
             ? ''
             : page + 1,
       },
-      {id: 3, value: collectableData.totalpages > 4 ? '...' : ''},
+      {id: 3, value: totalpages > 4 ? '---' : ''},
       {
         id: 4,
         value:
-          page > Math.floor(collectableData.totalpages / 2)
+          page > Math.floor(totalpages / 2)
             ? page - 1
-            : collectableData.totalpages - 1 > 0
-            ? collectableData.totalpages - 1
+            : totalpages - 1 > 0
+            ? totalpages - 1
             : '',
       },
       {
         id: 5,
-        value:
-          page > Math.floor(collectableData.totalpages / 2)
-            ? page
-            : collectableData.totalpages,
+        value: page > Math.floor(totalpages / 2) ? page : totalpages,
       },
     ];
 
-    data = data.filter(item => item.value != '');
-    data = [...new Map(data.map(item => [item.value, item])).values()];
+    let data1 = [
+      {
+        id: 1,
+        value: 1,
+      },
+      {
+        id: 2,
+        value: 2 > totalpages ? '' : 2,
+      },
+      {
+        id: 4,
+        value: 3 > totalpages ? '' : 3,
+      },
+      {
+        id: 5,
+        value: 4 > totalpages ? '' : 4,
+      },
+    ];
+    ///removing duplicate values from data
+    let data3 = (totalpages < 5 ? data1 : data).filter(
+      item => item.value != '',
+    );
+    let data4 = [...new Map(data3.map(item => [item.value, item])).values()];
+    // console.log('data', data);
     return (
       <View style={styles.paginationFlex}>
-        <TouchableOpacity
-          onPress={() => {
-            setPage(page - 1);
-          }}
-          disabled={page <= 1 ? true : false}
-          style={styles.forwardButton}>
-          <Text style={styles.forwardButtonText}>{'<'}</Text>
-        </TouchableOpacity>
-        {data.map(item => (
+        {totalpages > 1 && totalpages >= 2 && (
+          <TouchableOpacity
+            onPress={() => {
+              if (page > 1) {
+                setPage(page - 1);
+              }
+            }}
+            disabled={page <= 1 ? true : false}
+            style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
+            <Text style={styles.forwardButtonText}>{'<'}</Text>
+          </TouchableOpacity>
+        )}
+
+        {data4.map(item => (
           <TouchableOpacity
             disabled={item.id === 3 ? true : false}
             key={item.id}
@@ -197,19 +224,30 @@ const HomePage = ({navigation}) => {
             <Text
               style={{
                 color: getTextColor(item),
+                textAlign: 'center',
+                textAlignVertical: 'center',
               }}>
               {item.value}
             </Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity
-          onPress={() => {
-            setPage(page + 1);
-          }}
-          disabled={page === collectableData.totalpages}
-          style={styles.backwardButton}>
-          <Text style={{color: '#873900'}}>{'>'}</Text>
-        </TouchableOpacity>
+        {totalpages >= 2 && (
+          <TouchableOpacity
+            onPress={() => {
+              if (page < totalpages) {
+                setPage(page + 1);
+              }
+            }}
+            disabled={page === totalpages}
+            style={[
+              styles.backwardButton,
+              {
+                opacity: page === totalpages ? 0 : 1,
+              },
+            ]}>
+            <Text style={{color: '#873900'}}>{'>'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -238,7 +276,7 @@ const HomePage = ({navigation}) => {
     const enteredPage = parseInt(inputSearch); // Convert user's input to a number
 
     // Check if parsedPage is a valid number and within the allowed range
-    if (enteredPage >= 1 && enteredPage <= collectableData.totalpages) {
+    if (enteredPage >= 1 && enteredPage <= totalpages) {
       setPage(enteredPage); // Update the current page
       setError('');
       setInputSearch('');
@@ -263,6 +301,11 @@ const HomePage = ({navigation}) => {
             <Menu width={43} height={43} />
           </Pressable>
         </View>
+        {loader && (
+          <View style={styles.Loader}>
+            <ActivityIndicator size={50} color={'#8B0000'}></ActivityIndicator>
+          </View>
+        )}
         {!isLoading ? (
           <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
             <Text style={styles.headerText}>Collectables</Text>
@@ -357,7 +400,10 @@ const HomePage = ({navigation}) => {
                 />
               </View>
               <View style={{marginTop: 50}}>
-                <Image source={require('../assets/images/socialmedia.png')} style={styles.socialMediaImg} />
+                <Image
+                  source={require('../assets/images/socialmedia.png')}
+                  style={styles.socialMediaImg}
+                />
               </View>
               <Text style={styles.footerText}>
                 Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
@@ -562,20 +608,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 10,
     alignItems: 'center',
-    justifyContent: 'space-around',
-    flex: 0.5,
     width: '100%',
   },
   forwardButton: {
     borderWidth: 1,
-    margin: 5,
+    // margin: 5,
+    marginHorizontal: 5,
     width: 30,
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderColor: '#873900',
     borderRadius: 5,
-    // opacity: page <= 1 ? 0.3 : 1,
+    marginBottom: 5,
   },
   forwardButtonText: {
     color: '#873900',
@@ -584,24 +629,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    margin: 5,
-    padding: 5,
-    width: 50,
-    height: 50,
+    margin: 2.5,
+    flex: 1,
+    // paddingBottom: 15,
+    width: 45,
+    height: 45,
     borderColor: '#873900',
     marginBottom: 10,
     borderRadius: 5,
   },
   backwardButton: {
     borderWidth: 1,
-    margin: 5,
+    // margin: 5,
     width: 30,
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderColor: '#873900',
     borderRadius: 5,
-    // opacity: page === collectableData.totalpages ? 0.3 : 1,
+    marginBottom: 5,
+    marginHorizontal: 5,
   },
   searcFlex: {
     flexDirection: 'row',
