@@ -6,7 +6,6 @@ import {
   ImageBackground,
   Pressable,
   FlatList,
-  ActivityIndicator,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -19,10 +18,10 @@ import Filter from '../assets/images/filter.svg';
 import Up from '../assets/images/up.svg';
 import axios from 'axios';
 import {APIS} from '../src/configs/apiUrls';
+import Loader from './componet/Loader/Loader';
 
 const HomePage = ({navigation}) => {
   const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isClicked, setIsClicked] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState({
     itemName: 'Newest Items',
@@ -50,37 +49,32 @@ const HomePage = ({navigation}) => {
     getCollectibleItems(selectedFilter.type, page);
   }, [selectedFilter, page]);
 
+  ///fecth the first api of catagories
   const getCatagories = async () => {
-    setIsLoading(true);
+    setLoader(true);
     try {
       console.log('response', APIS.getCategories);
       let response = await axios.get(APIS.getCategories);
       setCategories(response.data.data);
-      setIsLoading(false);
+      setLoader(false);
     } catch (error) {
       console.error('response first error', error);
-      setIsLoading(false);
+      setLoader(false);
     }
   };
 
+  ///fetch the second api of collectible items
   const getCollectibleItems = async (filtertype, page) => {
-    // setIsLoading(true);
     setLoader(true);
     try {
       const apiUrls = `${APIS.getCollectableItems}${filtertype}/${page}/`;
-      console.log('sksksksksks', filtertype);
-
       const response = await axios.get(apiUrls);
-
-      const totalPages = response.data.data.totalpages;
       setCollectableData(response.data.data);
-
       console.log('response2', response.data.data);
       console.log('response 2', response.data.data.totalpages);
     } catch (error) {
       console.error('getCollectibleItems error:', error);
     } finally {
-      setIsLoading(false);
       setLoader(false);
     }
   };
@@ -141,36 +135,41 @@ const HomePage = ({navigation}) => {
 
   // button pagination starts
   const renderButtons = () => {
+    ///pagination buttons data
     let data = [
       {
         id: 1,
-        value: page > Math.floor(totalpages / 2) ? 1 : page,
+        value: page > Math.floor(collectableData.totalpages / 2) ? 1 : page,
       },
       {
         id: 2,
         value:
-          page > Math.floor(totalpages / 2)
+          page > Math.floor(collectableData.totalpages / 2)
             ? 2
-            : page + 1 > totalpages
+            : page + 1 > collectableData.totalpages
             ? ''
             : page + 1,
       },
-      {id: 3, value: totalpages > 4 ? '---' : ''},
+      {id: 3, value: collectableData.totalpages > 4 ? '---' : ''},
       {
         id: 4,
         value:
-          page > Math.floor(totalpages / 2)
+          page > Math.floor(collectableData.totalpages / 2)
             ? page - 1
-            : totalpages - 1 > 0
-            ? totalpages - 1
+            : collectableData.totalpages - 1 > 0
+            ? collectableData.totalpages - 1
             : '',
       },
       {
         id: 5,
-        value: page > Math.floor(totalpages / 2) ? page : totalpages,
+        value:
+          page > Math.floor(collectableData.totalpages / 2)
+            ? page
+            : collectableData.totalpages,
       },
     ];
 
+    ///static data if total pages are lessthen 5
     let data1 = [
       {
         id: 1,
@@ -178,38 +177,38 @@ const HomePage = ({navigation}) => {
       },
       {
         id: 2,
-        value: 2 > totalpages ? '' : 2,
+        value: 2 > collectableData.totalpages ? '' : 2,
       },
       {
         id: 4,
-        value: 3 > totalpages ? '' : 3,
+        value: 3 > collectableData.totalpages ? '' : 3,
       },
       {
         id: 5,
-        value: 4 > totalpages ? '' : 4,
+        value: 4 > collectableData.totalpages ? '' : 4,
       },
     ];
     ///removing duplicate values from data
-    let data3 = (totalpages < 5 ? data1 : data).filter(
+    let data3 = (collectableData.totalpages < 5 ? data1 : data).filter(
       item => item.value != '',
     );
     let data4 = [...new Map(data3.map(item => [item.value, item])).values()];
-    // console.log('data', data);
     return (
       <View style={styles.paginationFlex}>
-        {totalpages > 1 && totalpages >= 2 && (
-          <TouchableOpacity
-            onPress={() => {
-              if (page > 1) {
-                setPage(page - 1);
-              }
-            }}
-            disabled={page <= 1 ? true : false}
-            style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
-            <Text style={styles.forwardButtonText}>{'<'}</Text>
-          </TouchableOpacity>
-        )}
-
+        {collectableData.totalpages > 1 &&
+          collectableData.totalpages >= 2 && ( /// display the backward button the page button should be greater then 1 && should not apear for only 1 total page
+            <TouchableOpacity ///backward button for buttons
+              onPress={() => {
+                if (page > 1) {
+                  setPage(page - 1);
+                }
+              }}
+              disabled={page <= 1 ? true : false}
+              style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
+              <Text style={styles.forwardButtonText}>{'<'}</Text>
+            </TouchableOpacity>
+          )}
+        {/* map the buttons to display  */}
         {data4.map(item => (
           <TouchableOpacity
             disabled={item.id === 3 ? true : false}
@@ -231,18 +230,18 @@ const HomePage = ({navigation}) => {
             </Text>
           </TouchableOpacity>
         ))}
-        {totalpages >= 2 && (
-          <TouchableOpacity
+        {collectableData.totalpages >= 2 && ( /// display the button if pages are more then 1 only
+          <TouchableOpacity /// forward button for the page button pagination
             onPress={() => {
-              if (page < totalpages) {
+              if (page < collectableData.totalpages) {
                 setPage(page + 1);
               }
             }}
-            disabled={page === totalpages}
+            disabled={page === collectableData.totalpages}
             style={[
               styles.backwardButton,
               {
-                opacity: page === totalpages ? 0 : 1,
+                opacity: page === collectableData.totalpages ? 0 : 1,
               },
             ]}>
             <Text style={{color: '#873900'}}>{'>'}</Text>
@@ -290,6 +289,7 @@ const HomePage = ({navigation}) => {
       source={require('../assets/images/bacgroundImage.jpg')}
       style={styles.imageBacground}>
       <View style={styles.container}>
+        {/* screen header */}
         <View style={styles.headers}>
           <View>
             <Logo />
@@ -301,21 +301,16 @@ const HomePage = ({navigation}) => {
             <Menu width={43} height={43} />
           </Pressable>
         </View>
-        {loader && (
-          <View style={styles.Loader}>
-            <ActivityIndicator size={50} color={'#8B0000'}></ActivityIndicator>
-          </View>
-        )}
-        {!isLoading ? (
-          <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
-            <Text style={styles.headerText}>Collectables</Text>
-            <FlatList
-              scrollEnabled={false}
-              data={categories}
-              renderItem={renderCategories}
-              numColumns={2}
-            />
-            <Text style={styles.secondHeader}>Collectable items</Text>
+        <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
+          <Text style={styles.headerText}>Collectables</Text>
+          <FlatList /// display the first categories items 
+            scrollEnabled={false}
+            data={categories}
+            renderItem={renderCategories}
+            numColumns={2}
+          />
+          <Text style={styles.secondHeader}>Collectable items</Text>
+          {collectableData?.data && ( ///if the loader is active it should not display
             <View style={styles.filterFlex}>
               <View style={styles.filterContent}>
                 <Filter width={20} height={18} />
@@ -339,84 +334,79 @@ const HomePage = ({navigation}) => {
                 />
               </TouchableOpacity>
             </View>
-            <View>
-              {isClicked && (
-                <ScrollView style={styles.dropdownArea}>
-                  {items.map((item, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      disabled={item.itemName === selectedFilter.itemName}
-                      onPress={() => {
-                        setSelectedFilter(item);
-                        setPage(1);
-                        setIsClicked(false);
-                      }}>
-                      <Text
-                        style={[
-                          styles.dropdownAreaText,
-                          {
-                            color:
-                              item.itemName === selectedFilter.itemName
-                                ? 'white'
-                                : 'black',
-                            backgroundColor:
-                              item.itemName === selectedFilter.itemName &&
-                              '#873900',
-                          },
-                        ]}>
-                        {item.itemName}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-            <FlatList
-              data={collectableData.data}
-              renderItem={renderSecondCategory}
-              scrollEnabled={false}
-            />
+          )}
+          {/* dropdown starts */}
+          <View>
+            {isClicked && (
+              <ScrollView style={styles.dropdownArea}>
+                {items.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    disabled={item.itemName === selectedFilter.itemName}
+                    onPress={() => {
+                      setSelectedFilter(item);
+                      setPage(1);
+                      setIsClicked(false);
+                    }}>
+                    <Text
+                      style={[
+                        styles.dropdownAreaText,
+                        {
+                          color:
+                            item.itemName === selectedFilter.itemName
+                              ? 'white'
+                              : 'black',
+                          backgroundColor:
+                            item.itemName === selectedFilter.itemName &&
+                            '#873900',
+                        },
+                      ]}>
+                      {item.itemName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+          <FlatList /// display the second collectible items
+            data={collectableData.data}
+            renderItem={renderSecondCategory}
+            scrollEnabled={false}
+          />
+          {collectableData?.data && ( //// if the loader is active it will not display 
+          //// renderbuttons and rendersearch
             <View style={styles.paginationAndSearch}>
               {renderButtons()}
               {renderSearch()}
             </View>
-            {loader && (
-              <View style={styles.Loader}>
-                <ActivityIndicator
-                  size={50}
-                  color={'#8B0000'}></ActivityIndicator>
-              </View>
-            )}
-
-            <View style={styles.footerContainer}>
-              <View style={styles.footerContent}>
-                <Image
-                  source={require('../assets/images/Payment1.png')}
-                  style={{height: '100%', width: '47%', resizeMode: 'stretch'}}
-                />
-                <Image
-                  source={require('../assets/images/Reviews1.png')}
-                  style={{width: '47%', height: '100%', resizeMode: 'stretch'}}
-                />
-              </View>
-              <View style={{marginTop: 50}}>
-                <Image
-                  source={require('../assets/images/socialmedia.png')}
-                  style={styles.socialMediaImg}
-                />
-              </View>
-              <Text style={styles.footerText}>
-                Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
-                Conditions | Privacy Policy
-              </Text>
+          )}
+            {/* footer content */}
+          <View style={styles.footerContainer}>
+            <View style={styles.footerContent}>
+              <Image
+                source={require('../assets/images/Payment1.png')}
+                style={{height: '100%', width: '47%', resizeMode: 'stretch'}}
+              />
+              <Image
+                source={require('../assets/images/Reviews1.png')}
+                style={{width: '47%', height: '100%', resizeMode: 'stretch'}}
+              />
             </View>
-          </ScrollView>
-        ) : (
-          <View style={styles.Loader}>
-            <ActivityIndicator size={50} color={'#8B0000'}></ActivityIndicator>
+            <View style={{marginTop: 50}}>
+              <Image
+                source={require('../assets/images/socialmedia.png')}
+                style={styles.socialMediaImg}
+              />
+            </View>
+            <Text style={styles.footerText}>
+              Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
+              Conditions | Privacy Policy
+            </Text>
           </View>
-        )}
+        </ScrollView>
       </View>
+      {/* loader for the whole content */}
+      {loader && <Loader />}
     </ImageBackground>
   );
 };
