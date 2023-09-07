@@ -10,19 +10,19 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useContext} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
-import Filter from '../assets/images/filter.svg';
-import Up from '../assets/images/up.svg';
 import axios from 'axios';
 import {APIS} from '../src/configs/apiUrls';
 import Loader from './componet/Loader/Loader';
+import DropdownSelector from './componet/DropDown';
+import {CategoriesContext} from './componet/AppContext';
 
 const HomePage = ({navigation}) => {
-  const [categories, setCategories] = useState([]);
-  const [isClicked, setIsClicked] = useState(false);
+  const {contextCategories, setContextCategories, getSubCatagories} =
+    useContext(CategoriesContext);
   const [selectedFilter, setSelectedFilter] = useState({
     itemName: 'Newest Items',
     type: 'newlyUpdated',
@@ -37,14 +37,15 @@ const HomePage = ({navigation}) => {
   const [page, setPage] = useState(1);
   const [inputSearch, setInputSearch] = useState('');
   const [error, setError] = useState('');
-  const [collectableData, setCollectableData] = useState({});
+  const [collectableData, setCollectableData] = useState([]);
   const [loader, setLoader] = useState(true);
-  const totalpages = 20;
 
+  /// useeffect for calling the api when app renders for categories
   useEffect(() => {
     getCatagories();
   }, []);
 
+  ///useeffect for the second api
   useEffect(() => {
     getCollectibleItems(selectedFilter.type, page);
   }, [selectedFilter, page]);
@@ -53,9 +54,8 @@ const HomePage = ({navigation}) => {
   const getCatagories = async () => {
     setLoader(true);
     try {
-      console.log('response', APIS.getCategories);
       let response = await axios.get(APIS.getCategories);
-      setCategories(response.data.data);
+      setContextCategories(response.data.data);
       setLoader(false);
     } catch (error) {
       console.error('response first error', error);
@@ -69,24 +69,43 @@ const HomePage = ({navigation}) => {
     try {
       const apiUrls = `${APIS.getCollectableItems}${filtertype}/${page}/`;
       const response = await axios.get(apiUrls);
-      setCollectableData(response.data.data);
-      console.log('response2', response.data.data);
-      console.log('response 2', response.data.data.totalpages);
+      setCollectableData(response.data?.data);
     } catch (error) {
       console.error('getCollectibleItems error:', error);
     } finally {
       setLoader(false);
     }
   };
+
+  // when user click any one category
+  const getSubCategoryData = async item => {
+    setLoader(true); // Set loading to true when the function starts
+
+    try {
+      const id = item?.category;
+      if (id) {
+        await getSubCatagories(id);
+      }
+      // Assuming navigation.navigate is asynchronous or doesn't return a promise
+      navigation.navigate('CatalougePage', {books: item});
+    } catch (error) {
+      console.error('An error occurred:', error);
+    } finally {
+      setLoader(false); // Set loading to false when the function completes (whether it succeeds or fails)
+    }
+  };
   /// first category items
   const renderCategories = ({item}) => (
-    <View style={styles.cardContent}>
+    <TouchableOpacity
+      style={styles.cardContent}
+      activeOpacity={0.5}
+      onPress={() => getSubCategoryData(item)}>
       <Image source={{uri: item.image}} style={styles.cardImage} />
       <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
         {item.title}
       </Text>
       <Text style={styles.cardText}>{item.name}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   /// second category items
@@ -109,8 +128,15 @@ const HomePage = ({navigation}) => {
         <Text style={styles.secondcardauthor}>{item.author}</Text>
         <Text style={styles.secondcardtext}>₹ {item.price}</Text>
       </View>
-      <Text style={styles.secondcardtitle}>{item.title}</Text>
-      <Text style={styles.secondcarddes}>{item.description}</Text>
+      <Text
+        style={styles.secondcardtitle}
+        ellipsizeMode="tail"
+        numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Text style={styles.secondcarddes} ellipsizeMode="tail" numberOfLines={3}>
+        {item.description}
+      </Text>
       <TouchableOpacity style={styles.Addtocartbutton} activeOpacity={1}>
         <Text style={styles.addtocarttext}>Add To Cart</Text>
       </TouchableOpacity>
@@ -275,7 +301,7 @@ const HomePage = ({navigation}) => {
     const enteredPage = parseInt(inputSearch); // Convert user's input to a number
 
     // Check if parsedPage is a valid number and within the allowed range
-    if (enteredPage >= 1 && enteredPage <= totalpages) {
+    if (enteredPage >= 1 && enteredPage <= collectableData.totalpages) {
       setPage(enteredPage); // Update the current page
       setError('');
       setInputSearch('');
@@ -301,86 +327,38 @@ const HomePage = ({navigation}) => {
             <Menu width={43} height={43} />
           </Pressable>
         </View>
-        <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={styles.headerText}>Collectables</Text>
-          <FlatList /// display the first categories items 
+
+          <FlatList /// display the first categories items
             scrollEnabled={false}
-            data={categories}
+            data={contextCategories}
             renderItem={renderCategories}
             numColumns={2}
           />
           <Text style={styles.secondHeader}>Collectable items</Text>
           {collectableData?.data && ( ///if the loader is active it should not display
-            <View style={styles.filterFlex}>
-              <View style={styles.filterContent}>
-                <Filter width={20} height={18} />
-                <Text style={styles.filterText}>Filters</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.dropdownSelector}
-                onPress={() => setIsClicked(!isClicked)}
-                activeOpacity={1}>
-                <Text style={styles.dropdownText}>
-                  {selectedFilter.itemName}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{position: 'relative', right: 45}}
-                onPress={() => setIsClicked(!isClicked)}>
-                <Up
-                  width={20}
-                  height={10}
-                  style={[isClicked && styles.reverseImage]}
-                />
-              </TouchableOpacity>
-            </View>
+              <DropdownSelector
+                items={items}
+                selectedFilter={selectedFilter}
+                setSelectedFilter={setSelectedFilter}
+                setPage={setPage}
+                style={styles.dropdownselect}
+              />
           )}
-          {/* dropdown starts */}
-          <View>
-            {isClicked && (
-              <ScrollView style={styles.dropdownArea}>
-                {items.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    disabled={item.itemName === selectedFilter.itemName}
-                    onPress={() => {
-                      setSelectedFilter(item);
-                      setPage(1);
-                      setIsClicked(false);
-                    }}>
-                    <Text
-                      style={[
-                        styles.dropdownAreaText,
-                        {
-                          color:
-                            item.itemName === selectedFilter.itemName
-                              ? 'white'
-                              : 'black',
-                          backgroundColor:
-                            item.itemName === selectedFilter.itemName &&
-                            '#873900',
-                        },
-                      ]}>
-                      {item.itemName}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
           <FlatList /// display the second collectible items
-            data={collectableData.data}
+            data={collectableData?.data}
             renderItem={renderSecondCategory}
             scrollEnabled={false}
           />
-          {collectableData?.data && ( //// if the loader is active it will not display 
-          //// renderbuttons and rendersearch
+          {collectableData?.data && ( //// if the loader is active it will not display
+            //// renderbuttons and rendersearch
             <View style={styles.paginationAndSearch}>
               {renderButtons()}
               {renderSearch()}
             </View>
           )}
-            {/* footer content */}
+          {/* footer content */}
           <View style={styles.footerContainer}>
             <View style={styles.footerContent}>
               <Image
@@ -425,7 +403,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     marginTop: 15,
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   headerText: {
     fontFamily: 'RobotoSlab-Regular',
@@ -447,11 +425,11 @@ const styles = StyleSheet.create({
   cardImage: {
     width: 107,
     height: 120,
-    resizeMode: 'cover',
+    // resizeMode: 'cover',
   },
   cardContent: {
-    marginHorizontal: 10,
-    flex: 1,
+    marginHorizontal: 14,
+    width: '42%',
     minHeight: 280,
     backgroundColor: '#FFF8F2',
     elevation: 10,
@@ -484,45 +462,12 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  filterContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // width: '60%',
-    paddingHorizontal: 15,
-  },
   filterText: {
     fontFamily: 'RobotoSlab-Regular',
     marginLeft: 7,
     color: '#454545',
     fontSize: 16,
     fontWeight: '600',
-  },
-  dropdownSelector: {
-    justifyContent: 'center',
-    // alignItems: 'center',
-    // width: Dimensions.get('window').width - 100,
-    width: '60%',
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#873900',
-    paddingLeft: 10,
-  },
-  dropdownText: {
-    color: 'black',
-    fontFamily: 'RobotoSlab-Regular',
-    fontSize: 16,
-    fontWeight: '400',
-  },
-  dropdownArea: {
-    width: '60%',
-    flex: 1,
-    alignSelf: 'center',
-    marginLeft: 97,
-    minHeight: 100,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#873900',
   },
 
   secondCard: {
@@ -565,10 +510,6 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     fontFamily: 'OpenSans-Regular',
     fontSize: 16,
-  },
-  reverseImage: {
-    transform: [{rotate: '180deg'}],
-    padding: 10,
   },
 
   Addtocartbutton: {
@@ -677,21 +618,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#873900',
     borderRadius: 50,
   },
-  filterFlex: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    alignSelf: 'center',
-    right: -5,
-    // position: 'relative',
-  },
-  dropdownAreaText: {
-    padding: 4,
-    fontFamily: 'OpenSans-Regular',
-    fontSize: 16,
-    paddingLeft: 10,
-    fontWeight: '400',
-  },
   paginationAndSearch: {
     backgroundColor: '#FFF8F2',
     height: 180,
@@ -718,5 +644,25 @@ const styles = StyleSheet.create({
     width: 130,
     height: 70,
     resizeMode: 'stretch',
+  },
+  filterContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '30%',
+    padding: 10,
+    // marginTop: 10,
+  },
+  dropAndFilter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignSelf: 'center',
+    // alignItems: 'center',
+    width: '100%',
+    flex: 1,
+    // position: 'relative',
+    paddingHorizontal: 10,
+  },
+  dropdownselect: {
+    position: 'relative',
   },
 });
