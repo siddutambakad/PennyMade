@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import React, {useState, useEffect, useContext} from 'react';
 import Logo from '../assets/images/logo1.svg';
@@ -17,28 +18,44 @@ import Menu from '../assets/images/menu.svg';
 import axios from 'axios';
 import {APIS} from '../src/configs/apiUrls';
 import Loader from './componet/Loader/Loader';
-import DropdownSelector from './componet/DropDown';
 import {CategoriesContext} from './componet/AppContext';
+import Filter from '../assets/images/filter.svg';
+import Dropdowns from './componet/Dropdowns';
+import {
+  responsiveHeight,
+  responsiveWidth,
+} from 'react-native-responsive-dimensions';
+import Card from './componet/Card';
+import Footer from './componet/Footer';
+import {LogBox} from 'react-native';
 
 const HomePage = ({navigation}) => {
-  const {contextCategories, setContextCategories, getSubCatagories} =
-    useContext(CategoriesContext);
+  const {
+    contextCategories,
+    getSubCatagories,
+    setContextCategories,
+    cartItems,
+    addToCart,
+  } = useContext(CategoriesContext);
+  LogBox.ignoreAllLogs();
   const [selectedFilter, setSelectedFilter] = useState({
-    itemName: 'Newest Items',
+    name: 'Newest Items',
     type: 'newlyUpdated',
   });
   const items = [
-    {itemName: 'Newest Items', type: 'newlyUpdated'},
-    {itemName: 'Author', type: 'author'},
-    {itemName: 'Title', type: 'title'},
-    {itemName: 'Price-High', type: 'price_high'},
-    {itemName: 'Price-Low', type: 'price_low'},
+    {name: 'Newest Items', type: 'newlyUpdated'},
+    {name: 'Author', type: 'author'},
+    {name: 'Title', type: 'title'},
+    {name: 'Price-High', type: 'price_high'},
+    {name: 'Price-Low', type: 'price_low'},
   ];
   const [page, setPage] = useState(1);
   const [inputSearch, setInputSearch] = useState('');
   const [error, setError] = useState('');
   const [collectableData, setCollectableData] = useState([]);
   const [loader, setLoader] = useState(true);
+  const [isClicked, setIsClicked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   /// useeffect for calling the api when app renders for categories
   useEffect(() => {
@@ -54,15 +71,15 @@ const HomePage = ({navigation}) => {
   const getCatagories = async () => {
     setLoader(true);
     try {
-      let response = await axios.get(APIS.getCategories);
-      setContextCategories(response.data.data);
+      // let response = await axios.get(APIS.getCategories);
+      let response = await axios.get('http://54.226.77.97:81/view/categories/');
+      setContextCategories(response?.data?.data);
       setLoader(false);
     } catch (error) {
       console.error('response first error', error);
       setLoader(false);
     }
   };
-
   ///fetch the second api of collectible items
   const getCollectibleItems = async (filtertype, page) => {
     setLoader(true);
@@ -84,7 +101,7 @@ const HomePage = ({navigation}) => {
     try {
       const id = item?.category;
       if (id) {
-        await getSubCatagories(id);
+        await getSubCatagories(item?.category);
       }
       // Assuming navigation.navigate is asynchronous or doesn't return a promise
       navigation.navigate('CatalougePage', {books: item});
@@ -96,51 +113,53 @@ const HomePage = ({navigation}) => {
   };
   /// first category items
   const renderCategories = ({item}) => (
+    // <View style={{alignItems: 'center', alignSelf: 'center',}}>
     <TouchableOpacity
       style={styles.cardContent}
       activeOpacity={0.5}
       onPress={() => getSubCategoryData(item)}>
-      <Image source={{uri: item.image}} style={styles.cardImage} />
+      {item.image && item.image.length > 0 ? (
+        <Image source={{uri: item.image[0]}} style={styles.cardImage} />
+      ) : (
+        <View
+          style={{
+            marginTop: 10,
+          }}>
+          <Image
+            source={require('../assets/images/placeholderimage.png')}
+            style={{width: 107, height: 120}}
+          />
+        </View>
+      )}
       <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
         {item.title}
       </Text>
       <Text style={styles.cardText}>{item.name}</Text>
     </TouchableOpacity>
+    // </View>
   );
 
+  const handleCart = item => {
+    addToCart(item);
+  };
+
   /// second category items
-  const renderSecondCategory = ({item}) => (
-    <View style={styles.secondCard}>
-      <View style={{alignItems: 'center', padding: 10}}>
-        {item.image && item.image.length > 0 && (
-          <Image
-            source={{uri: item.image[0].url}} // Display the first image if available
-            style={{width: 200, height: 200, marginTop: 10}}
-          />
-        )}
-      </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-        <Text style={styles.secondcardauthor}>{item.author}</Text>
-        <Text style={styles.secondcardtext}>₹ {item.price}</Text>
-      </View>
-      <Text
-        style={styles.secondcardtitle}
-        ellipsizeMode="tail"
-        numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.secondcarddes} ellipsizeMode="tail" numberOfLines={3}>
-        {item.description}
-      </Text>
-      <TouchableOpacity style={styles.Addtocartbutton} activeOpacity={1}>
-        <Text style={styles.addtocarttext}>Add To Cart</Text>
-      </TouchableOpacity>
-    </View>
+  const renderSecondCategory = ({item, index}) => (
+    <Card
+      imgSource={item.image && item.image.length > 0 && item.image[0]}
+      author={item.author}
+      price={item.price}
+      title={item.title}
+      description={item.description}
+      // isLoading={loading}
+      handlePress={() => {
+        handleCart(item.sysid);
+      }}
+      handlePressCard={() => {
+        navigation.navigate('ProductDetail', {sysid: item.sysid});
+      }}
+      cardIndex={index} // Pass the index of the card
+    />
   );
   // page background color
   const getBackground = item => {
@@ -317,15 +336,34 @@ const HomePage = ({navigation}) => {
       <View style={styles.container}>
         {/* screen header */}
         <View style={styles.headers}>
-          <View>
-            <Logo />
+          <View style={{marginLeft: -8}}>
+            <Logo width={180} height={25} />
           </View>
-          <Pressable style={styles.pressableImage}>
-            <Shoppingcart width={22} height={22} />
-          </Pressable>
-          <Pressable onPress={() => navigation.openDrawer()}>
-            <Menu width={43} height={43} />
-          </Pressable>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Pressable
+              onPress={() => {
+                navigation.navigate('CartScreen');
+              }}
+              style={styles.pressableImage}>
+              <Shoppingcart width={22} height={22} />
+              {cartItems.length > 0 && (
+                <View style={styles.cartItemCount}>
+                  <Text
+                    style={{
+                      ...styles.cartItemCountText,
+                      fontSize: cartItems.length > 99 ? 10 : 12, // Adjust the font size as needed
+                    }}>
+                    {cartItems.length > 99 ? '99+' : cartItems.length}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              style={{paddingLeft: 10}}
+              onPress={() => navigation.openDrawer()}>
+              <Menu width={43} height={43} />
+            </Pressable>
+          </View>
         </View>
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={styles.headerText}>Collectables</Text>
@@ -335,21 +373,66 @@ const HomePage = ({navigation}) => {
             data={contextCategories}
             renderItem={renderCategories}
             numColumns={2}
+            style={{marginHorizontal: 10}}
           />
           <Text style={styles.secondHeader}>Collectable items</Text>
           {collectableData?.data && ( ///if the loader is active it should not display
-              <DropdownSelector
-                items={items}
-                selectedFilter={selectedFilter}
-                setSelectedFilter={setSelectedFilter}
-                setPage={setPage}
-                style={styles.dropdownselect}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-evenly',
+                alignItems: 'flex-start',
+                flex: 0.5,
+                paddingHorizontal: 15,
+                zIndex: 5,
+              }}>
+              <View style={styles.filterContent}>
+                <Filter />
+                <Text style={styles.filterText}>Filters</Text>
+              </View>
+              <Dropdowns
+                initialText={selectedFilter?.name}
+                options={items.filter(val => val)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderRadius: 3,
+                  width: 200,
+                  borderWidth: 1,
+                  padding: 10,
+                  borderColor: '#873900',
+                  position: 'relative',
+                }}
+                customOptionStyles={{
+                  width: 200,
+                  top: 50,
+                  position: 'absolute',
+                  backgroundColor: '#FFF8F2',
+                  borderWidth: 1,
+                  borderRadius: 3,
+                  borderColor: '#873900',
+                  height: 150,
+                  flex: 1,
+                  borderStyle: 'solid',
+                }}
+                handleClick={item => {
+                  setSelectedFilter(item);
+                  setPage(1);
+                }}
+                isGradient={false}
+                // setPage={setPage}
+                isClicked={isClicked}
+                setIsClicked={setIsClicked}
               />
+            </View>
           )}
+
           <FlatList /// display the second collectible items
             data={collectableData?.data}
             renderItem={renderSecondCategory}
             scrollEnabled={false}
+            // style={{marginTop: isClicked ? -145 : 15}}
           />
           {collectableData?.data && ( //// if the loader is active it will not display
             //// renderbuttons and rendersearch
@@ -359,28 +442,7 @@ const HomePage = ({navigation}) => {
             </View>
           )}
           {/* footer content */}
-          <View style={styles.footerContainer}>
-            <View style={styles.footerContent}>
-              <Image
-                source={require('../assets/images/Payment1.png')}
-                style={{height: '100%', width: '47%', resizeMode: 'stretch'}}
-              />
-              <Image
-                source={require('../assets/images/Reviews1.png')}
-                style={{width: '47%', height: '100%', resizeMode: 'stretch'}}
-              />
-            </View>
-            <View style={{marginTop: 50}}>
-              <Image
-                source={require('../assets/images/socialmedia.png')}
-                style={styles.socialMediaImg}
-              />
-            </View>
-            <Text style={styles.footerText}>
-              Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
-              Conditions | Privacy Policy
-            </Text>
-          </View>
+          <Footer />
         </ScrollView>
       </View>
       {/* loader for the whole content */}
@@ -393,17 +455,17 @@ export default HomePage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    // paddingHorizontal: 16,
   },
   imageBacground: {
     flex: 1,
   },
   headers: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    marginTop: 15,
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    marginVertical: 15,
   },
   headerText: {
     fontFamily: 'RobotoSlab-Regular',
@@ -411,7 +473,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 26,
     marginBottom: 20,
-    paddingHorizontal: 15,
+    paddingLeft: 16,
   },
   secondHeader: {
     fontFamily: 'RobotoSlab-Regular',
@@ -419,7 +481,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 26,
     marginTop: 40,
-    paddingHorizontal: 15,
+    paddingLeft: 16,
     marginBottom: 25,
   },
   cardImage: {
@@ -428,8 +490,10 @@ const styles = StyleSheet.create({
     // resizeMode: 'cover',
   },
   cardContent: {
-    marginHorizontal: 14,
-    width: '42%',
+    marginHorizontal: 9,
+    marginVertical: 5,
+    // flex: 0.5,
+    width: '45%',
     minHeight: 280,
     backgroundColor: '#FFF8F2',
     elevation: 10,
@@ -530,7 +594,7 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     flex: 1,
-    height: 380,
+    height: 350,
     backgroundColor: '#873900',
     marginTop: 20,
     alignItems: 'center',
@@ -539,7 +603,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 10,
     alignItems: 'center',
-    width: '100%',
+    width: '95%',
   },
   forwardButton: {
     borderWidth: 1,
@@ -617,6 +681,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#873900',
     borderRadius: 50,
+    position: 'relative',
+  },
+  cartItemCount: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    borderWidth: 1,
+    borderRadius: 50,
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'white',
+    backgroundColor: '#873900',
+  },
+  cartItemCountText: {
+    color: '#fff',
+    // fontSize: 12,
+    textAlignVertical: 'center',
+    textAlign: 'center',
   },
   paginationAndSearch: {
     backgroundColor: '#FFF8F2',
@@ -626,20 +710,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    height: '30%',
-    width: '100%',
-    marginTop: 20,
-    // borderWidth:3
-  },
-  footerText: {
-    textAlign: 'center',
-    marginTop: 50,
-    color: '#FFF8F2',
-  },
   socialMediaImg: {
     width: 130,
     height: 70,
@@ -648,7 +718,7 @@ const styles = StyleSheet.create({
   filterContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    width: '30%',
+    width: responsiveWidth(30),
     padding: 10,
     // marginTop: 10,
   },
@@ -661,8 +731,5 @@ const styles = StyleSheet.create({
     flex: 1,
     // position: 'relative',
     paddingHorizontal: 10,
-  },
-  dropdownselect: {
-    position: 'relative',
   },
 });

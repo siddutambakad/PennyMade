@@ -1,159 +1,302 @@
-import {View, Text, TouchableOpacity, FlatList, ScrollView} from 'react-native';
-import React, {useEffect, useState} from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ImageBackground,
+  Image,
+  ScrollView,
+  FlatList,
+} from 'react-native';
+import React, {useContext, useState, useEffect} from 'react';
+import Logo from '../assets/images/logo1.svg';
+import Shoppingcart from '../assets/images/shopping-cart.svg';
+import Menu from '../assets/images/menu.svg';
+import {CategoriesContext} from './componet/AppContext';
+import Loader from './componet/Loader/Loader';
 import axios from 'axios';
+import Footer from './componet/Footer';
 
-const AboutUs = () => {
-  const [catData, setCatData] = useState([]);
-  const [selectedCat, setSeletedCat] = useState({});
-  const [showCatDropDown, setShowCatDropDown] = useState(false);
-  const [dropdownData, setDropDownData] = useState([]);
-  const [selectedSubCat, setSeletedSubCat] = useState([]);
+const AboutUs = ({navigation}) => {
+  const {setContextCategories, cartItems, contextCategories, getSubCatagories} =
+    useContext(CategoriesContext);
+  const [loader, setLoader] = useState(true);
 
   useEffect(() => {
     getCatagories();
-    getDropDopwnData();
   }, []);
-
-  const getCatagories = () => {
-    axios
-      .get('http://54.226.77.97:81/view/categories/')
-      .then(res => {
-        console.log('cat dataaaa', res?.data?.data);
-        setCatData(res?.data?.data);
-      })
-      .catch(error => {
-        console.log('error while mgetting cat data');
-      });
-  };
-  const getDropDopwnData = () => {
-    axios
-      .get('http://54.226.77.97:81/view/getsubcat_dropdownlist/4/')
-      .then(res => {
-        console.log('cat dataaaa ========>', res?.data?.data);
-        setDropDownData(res?.data?.data);
-      })
-      .catch(error => {
-        console.log('error while mgetting cat data', error);
-      });
+  const getCatagories = async () => {
+    setLoader(true);
+    try {
+      let response = await axios.get('http://54.226.77.97:81/view/categories/');
+      setContextCategories(response?.data?.data);
+      setLoader(false);
+    } catch (error) {
+      console.error('response first error', error);
+      setLoader(false);
+    }
   };
 
-  return (
-    <View style={{ alignItems: 'center'}}>
-      <TouchableOpacity
-        onPress={() => {
-          setShowCatDropDown(!showCatDropDown);
-        }}
-        style={{
-          width: '90%',
-          paddingVertical: 10,
-          backgroundColor: 'yellow',
-          padding: 10,
-          marginTop: 30,
-          elevation: 6,
-        }}>
-        <Text>{selectedCat?.name}</Text>
-      </TouchableOpacity>
-      {showCatDropDown && (
-        <View style={{borderWidth: 1, width: '90%', zIndex: 2, marginTop: 75}}>
-          {catData?.map(item => {
-            let selected = selectedCat?.name === item?.name;
-            return (
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCatDropDown(false);
-                  setSeletedCat(item);
-                }}
-                style={{
-                  paddingVertical: 5,
-                  backgroundColor: selected ? 'blue' : 'white',
-                }}>
-                <Text style={{color: selected ? '#fff' : 'black'}}>
-                  {item?.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+  const getSubCategoryData = async item => {
+    setLoader(true); // Set loading to true when the function starts
+
+    try {
+      const id = item?.category;
+      if (id) {
+        await getSubCatagories(item?.category);
+      }
+      // Assuming navigation.navigate is asynchronous or doesn't return a promise
+      navigation.navigate('CatalougePage', {books: item});
+    } catch (error) {
+      console.error('An error occurred:', error);
+    } finally {
+      setLoader(false); // Set loading to false when the function completes (whether it succeeds or fails)
+    }
+  };
+
+  const renderCategories = ({item}) => (
+    // <View style={{alignItems: 'center', alignSelf: 'center',}}>
+    <TouchableOpacity
+      style={styles.cardContent}
+      activeOpacity={0.5}
+      onPress={() => getSubCategoryData(item)}>
+      {item.image && item.image.length > 0 ? (
+        <Image source={{uri: item.image[0]}} style={styles.cardImage} />
+      ) : (
+        <View
+          style={{
+            borderWidth: 0.4,
+            borderColor: '#CACFD2',
+            width: 107,
+            height: 120,
+            marginTop: 10,
+          }}></View>
       )}
-      <View style={{}}>
-        {/* <FlatList */}
-        {/* data={dropdownData}
-          horizontal
-          renderItem={({ item }) => {
-            return ( */}
-        {dropdownData?.map((item, index) => (
-          <ScrollView horizontal style={{width: 200, marginTop: 50}}>
-            <TouchableOpacity
-            key={index}
-              style={{backgroundColor: 'red', padding: 10, marginRight: 10}}
-              onPress={() => {
-                setSeletedSubCat(item);
-              }}>
-              <Text>{item?.name}</Text>
-            </TouchableOpacity>
-
-            {selectedSubCat?.name === item?.name && (
-              <View style={{borderWidth: 1, padding: 10, marginRight: 10}}>
-                {selectedSubCat?.dropdownlist?.map(val => {
-                  let selected = selectedCat?.name === val?.name;
-                  return (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSeletedSubCat(null);
-                      }}
-                      style={{
-                        paddingVertical: 5,
-                        backgroundColor: selected ? 'blue' : 'white',
-                      }}>
-                      <Text style={{color: selected ? '#fff' : 'black'}}>
-                        {val?.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+      <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
+        {item.title}
+      </Text>
+      <Text style={styles.cardText}>{item.name}</Text>
+    </TouchableOpacity>
+    // </View>
+  );
+  return (
+    <ImageBackground
+      source={require('../assets/images/bacgroundImage.jpg')}
+      style={styles.imageBacground}>
+      {/* headers  */}
+      <View style={styles.header}>
+        <View style={{marginLeft: -8}}>
+          <Logo width={180} height={25} />
+        </View>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CartScreen')}
+            style={styles.pressableImage}>
+            <Shoppingcart width={22} height={22} />
+            {cartItems.length > 0 && (
+              <View style={styles.cartItemCount}>
+                <Text
+                  style={{
+                    ...styles.cartItemCountText,
+                    fontSize: cartItems.length > 99 ? 10 : 12, // Adjust the font size as needed
+                  }}>
+                  {cartItems.length > 99 ? '99+' : cartItems.length}
+                </Text>
               </View>
             )}
-          </ScrollView>
-        ))}
-
-        {/* )
-          }} */}
-        {/* > */}
-
-        {/* </FlatList> */}
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
-        <Text style={{color: 'black'}}>ksjsjsjsjsjs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{paddingLeft: 10}}
+            onPress={() => navigation.openDrawer()}>
+            <Menu width={43} height={43} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+      <ScrollView>
+        <View style={styles.imgback}>
+          <Image
+            source={require('../assets/images/aboutimage.png')}
+            style={styles.firstimg}
+          />
+        </View>
+        <Text style={styles.headerText}>
+          Vintage Enthusiasts Rejoice: Uncover Hidden Gems in our website
+        </Text>
+        <Text style={styles.desText}>
+          Attention vintage enthusiasts! Get ready to explore a treasure trove
+          of hidden gems that have been carefully sourced from around the world.
+          Our auction showcases a diverse range of vintage collectables, each
+          with its own unique allure. From elegant Victorian-era pieces to
+          mid-century modern marvels, there's something for everyone.
+        </Text>
+        <Text style={styles.desText}>
+          Don't let these one-of-a-kind items slip through your fingers – place
+          your bids today! Whether you're a seasoned collector or a newcomer to
+          the vintage world, this is your chance to find that perfect piece to
+          elevate your collection. Start bidding now and make history your own!
+        </Text>
+        <View style={{alignItems: 'center'}}>
+          <Image
+            source={require('../assets/images/adminimage.png')}
+            style={styles.adminimg}
+          />
+        </View>
+        <Text style={styles.adminNameText}>Mr David N Druett</Text>
+        <Text style={styles.admindec}>- Pennymead administrator</Text>
+        <Text style={styles.desText}>
+          I am delighted to introduce myself as the proud owner of [Your
+          Business Name], a passion-driven venture dedicated to providing
+          exceptional [product/service]. As the driving force behind this
+          enterprise, my commitment is to deliver unparalleled quality,
+          innovation, and customer satisfaction.
+        </Text>
+        <Text style={styles.desText}>
+          Our commitment extends beyond financial success; we are also dedicated
+          to giving back to the community that supports us. As a socially
+          responsible company, we actively participate in various philanthropic
+          endeavors, striving to make a positive impact on society.
+        </Text>
+        <Text style={styles.headertext}>Collectables</Text>
+        <FlatList /// display the first categories items
+          scrollEnabled={false}
+          data={contextCategories}
+          renderItem={renderCategories}
+          numColumns={2}
+          style={{marginHorizontal: 10}}
+        />
+        <Footer />
+      </ScrollView>
+      {loader && <Loader />}
+    </ImageBackground>
   );
 };
 
 export default AboutUs;
+
+const styles = StyleSheet.create({
+  imageBacground: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    marginVertical: 15,
+  },
+  pressableImage: {
+    width: 45,
+    height: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#873900',
+    borderRadius: 50,
+  },
+  firstimg: {
+    width: 330,
+    height: 330,
+    resizeMode: 'contain',
+  },
+  imgback: {
+    alignItems: 'center',
+  },
+  headerText: {
+    paddingHorizontal: 14,
+    fontFamily: 'RobotoSlab-Regular',
+    color: 'black',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginVertical: 8,
+  },
+  desText: {
+    fontFamily: 'OpenSans-Regular',
+    color: 'black',
+    fontWeight: '400',
+    fontSize: 14,
+    textAlign: 'justify',
+    marginVertical: 8,
+    paddingHorizontal: 14,
+  },
+  adminimg: {
+    width: 330,
+    height: 330,
+    resizeMode: 'contain',
+    marginVertical: 8,
+  },
+  adminNameText: {
+    fontFamily: 'RobotoSlab-Regular',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'black',
+    marginVertical: 5,
+    paddingHorizontal: 14,
+  },
+  admindec: {
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '400',
+    color: 'black',
+    marginVertical: 5,
+    paddingHorizontal: 14,
+  },
+  cardContent: {
+    marginHorizontal: 9,
+    marginVertical: 5,
+    flex: 0.5,
+    width: '40%',
+    minHeight: 280,
+    backgroundColor: '#FFF8F2',
+    elevation: 10,
+    alignItems: 'center',
+    marginBottom: 18,
+    borderRadius: 5,
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 15,
+    textAlign: 'center',
+    fontFamily: 'OpenSans-Regular',
+    fontWeight: '400',
+    color: 'black',
+    padding: 5,
+  },
+  cardText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontFamily: 'RobotoSlab-Regular',
+    fontWeight: 'bold',
+    color: 'black',
+  },
+  headertext: {
+    fontFamily: 'RobotoSlab-Regular',
+    color: 'black',
+    fontWeight: '600',
+    fontSize: 26,
+    marginBottom: 20,
+    paddingLeft: 16,
+  },
+  cardImage: {
+    width: 107,
+    height: 120,
+    // resizeMode: 'cover',
+  },
+  cartItemCount: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    borderWidth: 1,
+    borderRadius: 50,
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'white',
+    backgroundColor: '#873900',
+  },
+  cartItemCountText: {
+    color: '#fff',
+    // fontSize: 12,
+    textAlignVertical: 'center',
+    textAlign: 'center',
+  },
+});

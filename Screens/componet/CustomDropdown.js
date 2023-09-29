@@ -8,6 +8,10 @@ import {
 import React, {useState} from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import Up from '../../assets/images/up.svg';
+import {
+  responsiveHeight,
+  responsiveWidth,
+} from 'react-native-responsive-dimensions';
 
 const CustomDropdown = ({
   options,
@@ -15,6 +19,7 @@ const CustomDropdown = ({
   selectedValue,
   selectedCategoryName,
 }) => {
+ 
   const [isClicked, setIsClicked] = useState(false);
 
   return (
@@ -88,7 +93,7 @@ const styles = StyleSheet.create({
   dropdownHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '70%',
+    width: responsiveWidth(70),
     padding: 12,
     // marginHorizontal: 5,
     marginTop: 10,
@@ -98,11 +103,13 @@ const styles = StyleSheet.create({
   },
   dropdownOptions: {
     borderWidth: 1,
-    width: '70%',
+    width: responsiveWidth(70),
     position: 'absolute',
-    zIndex: 1,
+    zIndex: 5,
+    height: 150,
     backgroundColor: '#FFF8F2',
-    top: 68,
+    top: 65,
+    borderColor: '#873900',
     borderRadius: 5,
   },
   dropdownOptionText: {

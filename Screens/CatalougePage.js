@@ -8,32 +8,35 @@ import {
   TextInput,
   FlatList,
   Image,
-  ToastAndroid,
 } from 'react-native';
-import React, {useEffect, useState, useContext} from 'react';
+import React, {useEffect, useState, useContext, useRef} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
 import Search from '../assets/images/search.svg';
-import CustomDropdown from '../Screens/componet/CustomDropdown';
-import DropdownSelector from '../Screens/componet/DropDown';
 import {APIS} from '../src/configs/apiUrls';
 import axios from 'axios';
 import Loader from './componet/Loader/Loader';
 import {CategoriesContext} from './componet/AppContext';
 import Dropdowns from './componet/Dropdowns';
 import CheckBox from '../assets/images/checkbox.svg';
-import Toast, {ErrorToast} from 'react-native-toast-message';
+import Toast from 'react-native-toast-message';
+import Filter from '../assets/images/filter.svg';
+import Footer from './componet/Footer';
+import Card from './componet/Card';
 
 const CatalougePage = ({navigation, route}) => {
-  const {books} = route.params;
+  const {books, subDropdown, searchingData} = route.params;
   const [particularItems, setParticularItems] = useState([]);
-  // console.log("particularItems",particularItems);
-  const {contextCategories, getSubCatagories, selectedSubCatagories} =
-    useContext(CategoriesContext);
+  const {
+    contextCategories,
+    getSubCatagories,
+    selectedSubCatagories,
+    addToCart,
+    cartItems,
+  } = useContext(CategoriesContext);
   const [page, setPage] = useState(1);
   const [reference, setReference] = useState('');
-  // console.log("sdada,reference",reference);
   const [category, setCategory] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedCatagories, setSelectedCatagories] = useState('');
@@ -46,39 +49,60 @@ const CatalougePage = ({navigation, route}) => {
   const [contentData, setContentData] = useState(null);
   const [isSearched, setIsSearched] = useState(false);
   const [isReference, setIsReference] = useState(false);
-
-  // const [searchByCatagory, setSearchByCatagory] = useState([]);
+  const [isClicked, setIsClicked] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [displayTitle, setDisplayTitle] = useState('');
 
   const [selectedFilter, setSelectedFilter] = useState({
-    itemName: 'Newest Items',
+    name: 'Newest Items',
     type: 'newlyUpdated',
   });
   const items = [
-    {itemName: 'Newest Items', type: 'newlyUpdated'},
-    {itemName: 'Author', type: 'author'},
-    {itemName: 'Title', type: 'title'},
-    {itemName: 'Price-High', type: 'price_high'},
-    {itemName: 'Price-Low', type: 'price_low'},
+    {name: 'Newest Items', type: 'newlyUpdated'},
+    {name: 'Author', type: 'author'},
+    {name: 'Title', type: 'title'},
+    {name: 'Price-High', type: 'price_high'},
+    {name: 'Price-Low', type: 'price_low'},
   ];
   const [loader, setLoader] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState(null);
 
-  const handleDropdowndata = data => {
-    // Create an empty array to store the modified data
-    let drpData = data.map(item => {
-      item = {...item, itemName: item.name};
-      return item;
-    });
-    return drpData;
-  };
+  useEffect(() => {
+    if (searchingData) {
+      setSelectedCatagories(
+        searchingData.category_number == 0 ? '' : searchingData.categoryname,
+      );
+      setSearchKeyword(searchingData.term);
+      const searchParams = {
+        term: searchingData.term,
+        adesc: searchingData.adesc,
+        category_number: searchingData.category_number,
+        sortby: searchingData.sortby,
+        page: searchingData.page,
+      };
+      searchApi(searchParams);
+    }
+  }, [searchingData]);
 
   // This useEffect is triggered whenever the 'books' state changes.
   useEffect(() => {
-    setSelectedCatagories({itemName: books.name});
-    setCategory(books.category);
+    setSelectedCatagories({name: books?.name || selectedCatagories?.name});
+    setCategory(books?.category);
   }, [books]);
 
-  // This useEffect is triggered whenever any of the dependencies change:
-  // 'selectedFilter.type', 'page', and 'category'.
+  ///// this is trigger whenever the dropdown is clicked from the productdetail page
+  useEffect(() => {
+    if (subDropdown) {
+      setIsSearched(false);
+      setIsReference(true);
+      // setCategory(subDropdown.category);
+      getSubCatagories(subDropdown.category);
+      setReference(subDropdown.reference);
+      setSelectedValue(subDropdown.name);
+    }
+  }, [subDropdown, category]);
+
   useEffect(() => {
     // Check if 'isSearched' is true. If true, execute the 'handleSearch' function.
     if (isSearched) {
@@ -116,25 +140,20 @@ const CatalougePage = ({navigation, route}) => {
     }
   };
 
-  const handleSearch = async () => {
+  const getCategoryNumber = category => {
+    if (category && contextCategories) {
+      const data = contextCategories.filter(item => item.category === category);
+      if (data.length > 0) {
+        return data[0].category;
+      }
+    }
+  };
+
+  const searchApi = async searchParams => {
     setIsSearched(true);
     setLoader(true);
     setIsReference(false);
     try {
-      ///body for the post api
-
-      const searchParams = {
-        term: searchKeyword,
-        adesc: selectedOption3 ? 1 : 0,
-        category_number: selectedOption2 ? 1 : 0,
-        sortby: selectedFilter.type,
-        page: page,
-      };
-      console.log(
-        '🚀 ~ file: CatalougePage.js:124 ~ handleSearch ~ api:',
-        searchParams,
-      );
-      // return
       const response = await axios.post(APIS.getSearchItems, searchParams);
 
       // Check if "searchresults" key exists in the response
@@ -143,11 +162,13 @@ const CatalougePage = ({navigation, route}) => {
         let _searchData = {...searchData, data: searchData.searchresults};
         // console.log('Search Response _searchData:', _searchData?.data);
         setParticularItems(_searchData);
+        setDisplayTitle(`Showing results for '${searchKeyword}'`);
       } else {
         // Handle the case when "searchresults" key is not found
         setParticularItems([]);
       }
     } catch (error) {
+      console.log('responsce search error in catalouge', error);
       Toast.show({
         type: 'tomatoToast',
         text1: 'No Data Found',
@@ -159,67 +180,94 @@ const CatalougePage = ({navigation, route}) => {
     }
   };
 
+  const handleSearch = async () => {
+    // setIsSearched(true);
+    // setLoader(true);
+    // setIsReference(false);
+    const searchParams = {
+      term: searchKeyword,
+      adesc: selectedOption3 ? 1 : 0,
+      category_number: selectedOption2
+        ? getCategoryNumber(selectedCatagories)
+        : 0,
+      sortby: selectedFilter.type,
+      page: page,
+    };
+    searchApi(searchParams);
+    // try {
+    //   ///body for the post api
+    //   const searchParams = {
+    //     term: searchKeyword,
+    //     adesc: selectedOption3 ? 1 : 0,
+    //     category_number: selectedOption2 ? getCategoryNumber(selectedCatagories) : 0,
+    //     sortby: selectedFilter.type,
+    //     page: page,
+    //   };
+    //   console.log("🚀 ~ file: CatalougePage.js:167 ~ handleSearch ~ searchParams:", searchParams)
+    //   // return
+    //   const response = await axios.post(APIS.getSearchItems, searchParams);
+    //   console.log("🚀 ~ file: CatalougePage.js:169 ~ handleSearch ~ response:", response)
+
+    //   // Check if "searchresults" key exists in the response
+    //   if (response?.data?.searchresults) {
+    //     const searchData = response?.data; // Extract search results
+    //     let _searchData = {...searchData, data: searchData.searchresults};
+    //     // console.log('Search Response _searchData:', _searchData?.data);
+    //     setParticularItems(_searchData);
+    //     setDisplayTitle(`Showing results for '${searchKeyword}'`);
+    //   } else {
+    //     // Handle the case when "searchresults" key is not found
+    //     setParticularItems([]);
+    //   }
+    // } catch (error) {
+    //   console.log('responsce search error in catalouge', error);
+    //   Toast.show({
+    //     type: 'tomatoToast',
+    //     text1: 'No Data Found',
+    //     visibilityTime: 2500,
+    //     position: 'bottom',
+    //   });
+    // } finally {
+    //   setLoader(false);
+    // }
+  };
+
   const getSearchBySubCat = async (category, reference, filtertype, page) => {
     setLoader(true);
     const url = `${APIS.getSearchByCat}/${category}/${reference}/${filtertype}/${page}/`;
 
-    // console.log(
-    //   '🚀 ~ file: CatalougePage.js:169 ~ getSearchBySubCat ~ url:',
-    //   url,
-    // );
     try {
       const response = await axios.get(url);
       setParticularItems(response?.data?.data);
-      // console.log(
-      //   '🚀 ~ file: CatalougePage.js:166 ~ getSearchBySubCat ~ response?.data.data:',
-      //   response.data,
-      // );
     } catch (error) {
-      console.log('Responce search sub cat Error', error);
+      console.log('Responce subcat dropdown', error);
     } finally {
       setLoader(false);
     }
   };
 
-  const renderBooksItem = ({item}) => (
-    <View style={styles.secondCard}>
-      <View style={{alignItems: 'center', padding: 10}}>
-        {item.image && item.image.length > 0 && (
-          <Image
-            source={{uri: item.image[0].url}} // Display the first image if available
-            style={{
-              width: '65%',
-              height: 200,
-              marginTop: 10,
-            }}
-          />
-        )}
-      </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-        <Text style={styles.secondcardauthor} ellipsizeMode="tail">
-          {item.author}
-        </Text>
-        <Text style={styles.secondcardtext}>€ {item.price}</Text>
-      </View>
-      <Text
-        style={styles.secondcardtitle}
-        ellipsizeMode="tail"
-        numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.secondcarddes} ellipsizeMode="tail" numberOfLines={3}>
-        {item.description}
-      </Text>
-      <TouchableOpacity style={styles.Addtocartbutton} activeOpacity={1}>
-        <Text style={styles.addtocarttext}>Add To Cart</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const handleCart = item => {
+    addToCart(item);
+  };
+
+  const renderBooksItem = ({item, index}) => {
+    return (
+      <Card
+        imgSource={item.image && item.image.length > 0 ? item.image[0] : null}
+        author={item.author}
+        price={item.price}
+        title={item.title}
+        description={item.description}
+        handlePress={() => {
+          handleCart(item.sysid);
+        }}
+        handlePressCard={() => {
+          navigation.navigate('ProductDetail', {sysid: item.sysid});
+        }}
+        cardIndex={index}
+      />
+    );
+  };
 
   const getBackground = item => {
     if (item?.value === page) {
@@ -386,110 +434,156 @@ const CatalougePage = ({navigation, route}) => {
     }
   };
 
-  const [openDropdownIndex, setOpenDropdownIndex] = useState(null);
-
   const toggleDropdown = index => {
-    if (index === openDropdownIndex) {
+    setIsOpen(false);
+    setIsClicked(false);
+    if (index === openDropdown) {
       // Clicking on the currently open dropdown, close it
-      setOpenDropdownIndex(null);
+      setOpenDropdown(null);
+      setSelectedValue('');
     } else {
       // Clicking on a different dropdown, open it and close the previously open one
-      setOpenDropdownIndex(index);
+      setOpenDropdown(index);
     }
   };
   return (
     <ImageBackground
       source={require('../assets/images/bacgroundImage.jpg')}
       style={styles.imagebackground}>
-      <View style={styles.headerContainer}>
-        <View>
-          <Logo />
-        </View>
-        <TouchableOpacity style={styles.shopingCartImg}>
-          <Shoppingcart width={22} height={22} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.openDrawer()}>
-          <Menu width={43} height={43} />
-        </TouchableOpacity>
-      </View>
-      <View style={{marginLeft: 15, marginBottom: 10}}>
-        <CustomDropdown
-          options={handleDropdowndata(contextCategories)}
-          setSelectedValue={async item => {
-            setIsReference(false);
-            setIsSearched(false);
-            const id = item?.category;
-            setSelectedCatagories(item);
-            setCategory(id);
-
-            if (id) {
-              await getSubCatagories(id);
-            }
-          }}
-          selectedValue={selectedCatagories}
-          selectedCategoryName={selectedCatagories.itemName}
-        />
-      </View>
-      {/* <ScrollView horizontal showsHorizontalScrollIndicator={false}> */}
-      
-      <View
-        style={{
-          justifyContent: 'center',
-          paddingBottom: 25,
-          marginHorizontal: 8,
-        }}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={selectedSubCatagories}
-          renderItem={({item, index}) => (
-            <Dropdowns
-              initialText={item.name}
-              options={item.dropdownlist}
-              handleClick={item => {
-                setIsSearched(false);
-                setIsReference(true);
-                setReference(item.reference);
-                setSelectedValue(item.name);
-              }}
-              isClicked={index === openDropdownIndex}
-              setIsClicked={() => toggleDropdown(index)}
-              key={item.name}
-            />
-          )}
-          keyExtractor={item => item.name}
-        />
-      </View>
-      {/* </ScrollView> */}
-      <View style={styles.searchFlex}>
-        <TextInput
-          style={styles.inputsearch}
-          onChangeText={text => {
-            setSearchKeyword(text);
-          }}
-          placeholder="Enter Something......."
-          placeholderTextColor={'#873900'}
-          value={searchKeyword}
-        />
+      <View style={styles.headers}>
         <TouchableOpacity
-          style={styles.searchbutton}
-          onPress={handleSearch}
-          activeOpacity={1}>
-          <Search />
+          onPress={() => navigation.navigate('HomePage')}
+          style={{marginLeft: -8}}>
+          <Logo width={180} height={25} />
         </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* whole catalouge and this category */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginHorizontal: 15,
-            marginTop: 15,
-          }}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
           <TouchableOpacity
-            style={{flexDirection: 'row', alignItems: 'center'}}
+            onPress={() => {
+              navigation.navigate('CartScreen');
+            }}
+            style={styles.pressableImage}>
+            <Shoppingcart width={22} height={22} />
+            {cartItems.length > 0 && (
+              <View style={styles.cartItemCount}>
+                <Text
+                  style={{
+                    ...styles.cartItemCountText,
+                    fontSize: cartItems.length > 99 ? 10 : 12, // Adjust the font size as needed
+                  }}>
+                  {cartItems.length > 99 ? '99+' : cartItems.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{paddingLeft: 10}}
+            onPress={() => navigation.openDrawer()}>
+            <Menu width={43} height={43} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <ScrollView
+        nestedScrollEnabled={true}
+        style={styles.container}
+        showsVerticalScrollIndicator={false}>
+        {/* first category list dropdown */}
+        {particularItems?.data && (
+          <View
+            style={{
+              flex: 1,
+              marginHorizontal: 15,
+              zIndex: 5,
+              marginBottom: 10,
+            }}>
+            <Dropdowns
+              initialText={selectedCatagories?.name}
+              style={styles.firstDropdown}
+              customOptionStyles={styles.firstdropdownOptions}
+              isGradient={true}
+              options={contextCategories}
+              handleClick={async item => {
+                setIsReference(false);
+                setIsSearched(false);
+                const id = item?.category;
+                setSelectedCatagories(item);
+                setCategory(id);
+
+                if (id) {
+                  await getSubCatagories(id);
+                }
+              }}
+              // setPage={setPage}
+              isClicked={isOpen}
+              setIsClicked={() => {
+                setIsOpen(!isOpen);
+                setOpenDropdown(null);
+                setIsClicked(false);
+              }}
+            />
+          </View>
+        )}
+        {/* subcategory dropdowns */}
+        {particularItems?.data && (
+          <View
+            style={{
+              marginHorizontal: 8,
+              zIndex: 1,
+              marginTop: isOpen ? -140 : 10,
+            }}>
+            <FlatList
+              horizontal
+              nestedScrollEnabled={true}
+              showsHorizontalScrollIndicator={false}
+              data={selectedSubCatagories}
+              renderItem={({item, index}) => (
+                <View style={{marginHorizontal: 8}}>
+                  <Dropdowns
+                    initialText={item.name || subDropdown.name}
+                    isGradient={true}
+                    options={item.dropdownlist}
+                    style={styles.secondDropdown}
+                    customOptionStyles={styles.secondDropdownOptions}
+                    handleClick={item => {
+                      setIsSearched(false);
+                      setIsReference(true);
+                      setReference(item.reference);
+                      setSelectedValue(item.name);
+                    }}
+                    isClicked={item === openDropdown}
+                    setIsClicked={() => toggleDropdown(item)}
+                    setPage={setPage}
+                    key={item.name}
+                  />
+                </View>
+              )}
+              keyExtractor={item => item.name}
+            />
+          </View>
+        )}
+        {/* input field for the searchoptions */}
+        <View
+          style={{...styles.searchFlex, marginTop: openDropdown ? -150 : 10}}>
+          <TextInput
+            style={styles.inputsearch}
+            onChangeText={text => {
+              setSearchKeyword(text);
+            }}
+            placeholder="Enter Something......."
+            placeholderTextColor={'#873900'}
+            value={searchKeyword}
+          />
+          <TouchableOpacity
+            style={styles.searchbutton}
+            onPress={handleSearch}
+            activeOpacity={1}>
+            <Search />
+          </TouchableOpacity>
+        </View>
+
+        {/* whole catalouge and this category */}
+        <View style={styles.wholeAndCategory}>
+          <TouchableOpacity
+            style={styles.wholeCatalouge}
             activeOpacity={1}
             onPress={() => {
               setSelectedOption1('Whole Catalogue');
@@ -506,13 +600,11 @@ const CatalougePage = ({navigation, route}) => {
             style={{flexDirection: 'row', alignItems: 'center'}}
             activeOpacity={1}
             onPress={() => {
-              setSelectedOption2('This category');
+              setSelectedOption2(true);
               setSelectedOption1(false);
             }}>
             <View style={styles.circle}>
-              {selectedOption2 === 'This category' && (
-                <View style={styles.dotCircle}></View>
-              )}
+              {selectedOption2 && <View style={styles.dotCircle}></View>}
             </View>
             <Text style={styles.radioText2}>This Category</Text>
           </TouchableOpacity>
@@ -524,69 +616,68 @@ const CatalougePage = ({navigation, route}) => {
           onPress={() => {
             setSelectedOption3(!selectedOption3);
           }}
-          style={{
-            flexDirection: 'row',
-            marginTop: 15,
-            alignItems: 'center',
-            marginHorizontal: 15,
-            flex: 1,
-          }}>
+          style={styles.searchCategory}>
           <View style={styles.checkbox}>{selectedOption3 && <CheckBox />}</View>
           <Text style={styles.searchTexts}>Search by description</Text>
         </TouchableOpacity>
-        <View style={{marginBottom: 15}}>
-          <Text style={styles.titlename}>{selectedCatagories.itemName}</Text>
+        {/* displaying the text and description of book */}
+        <View style={{}}>
+          <Text style={styles.titlename}>
+            {isSearched ? displayTitle : selectedCatagories.name}
+          </Text>
           <Text style={styles.titledes}>
             {contentData
-              ? contentData?.category_footer
+              ? contentData?.category_description
                   ?.replace(/<[^>]+>/g, '')
                   .replaceAll('&nbsp;', '')
               : ''}
           </Text>
         </View>
-        {particularItems && (
-          <DropdownSelector
-            items={items.filter(val => val)}
-            selectedFilter={selectedFilter}
-            setSelectedFilter={setSelectedFilter}
-            setPage={setPage}
-            style={styles.dropdownselect}
-          />
+        {/* filter types starts */}
+        {particularItems?.data && (
+          <View style={styles.filterAnd}>
+            <View style={styles.filterContent}>
+              <Filter />
+              <Text style={styles.filterText}>Filters</Text>
+            </View>
+            <Dropdowns
+              initialText={selectedFilter?.name}
+              options={items.filter(val => val)}
+              style={styles.filterDropdown}
+              customOptionStyles={styles.filterDropdownOptions}
+              handleClick={item => {
+                setSelectedFilter(item);
+                setOpenDropdown(null);
+                setPage(1);
+              }}
+              isGradient={false}
+              setPage={setPage}
+              isClicked={isClicked} // -1 indicates that it's the filter dropdown
+              setIsClicked={() => {
+                setIsClicked(!isClicked);
+                setIsOpen(false);
+                setOpenDropdown(null);
+              }}
+            />
+          </View>
         )}
+        {/* rendering the books  */}
         <FlatList
+          // nestedScrollEnabled={true}
           scrollEnabled={false}
           data={particularItems?.data}
+          // style={{marginTop: isClicked ? -145 : 15}}
           renderItem={renderBooksItem}
         />
-        {particularItems && (
+        {/* rendering the pagination buttons  */}
+        {particularItems?.data && (
           <View style={styles.paginationAndSearch}>
             {renderButtons()}
             {renderSearch()}
           </View>
         )}
         {/* footer content */}
-        <View style={styles.footerContainer}>
-          <View style={styles.footerContent}>
-            <Image
-              source={require('../assets/images/Payment1.png')}
-              style={{height: '100%', width: '47%', resizeMode: 'stretch'}}
-            />
-            <Image
-              source={require('../assets/images/Reviews1.png')}
-              style={{width: '47%', height: '100%', resizeMode: 'stretch'}}
-            />
-          </View>
-          <View style={{marginTop: 50}}>
-            <Image
-              source={require('../assets/images/socialmedia.png')}
-              style={styles.socialMediaImg}
-            />
-          </View>
-          <Text style={styles.footerText}>
-            Copyright © 2023, Pemmymead | All Rights Reserved | Terms &
-            Conditions | Privacy Policy
-          </Text>
-        </View>
+        <Footer />
       </ScrollView>
       {loader && <Loader />}
     </ImageBackground>
@@ -602,11 +693,22 @@ const styles = StyleSheet.create({
   imagebackground: {
     flex: 1,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  pressableImage: {
+    width: 45,
+    height: 45,
     alignItems: 'center',
-    marginTop: 15,
+    justifyContent: 'center',
+    backgroundColor: '#873900',
+    borderRadius: 50,
+    // paddingRight: 10,
+    marginRight: 7,
+  },
+  headers: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginVertical: 15,
   },
   shopingCartImg: {
     width: 45,
@@ -624,7 +726,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     marginHorizontal: 10,
-    marginTop: 10,
+    marginVertical: 15,
     // backgroundColor: 'red',
   },
   inputsearch: {
@@ -671,15 +773,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '400',
     marginHorizontal: 15,
-    marginVertical: 15,
-  },
-  titledes: {
-    color: '#454545',
-    fontFamily: 'OpenSans-Regular',
-    fontSize: 16,
-    fontWeight: '400',
-    marginHorizontal: 15,
-    marginVertical: 15,
+    marginVertical: 10,
   },
   titledes: {
     color: '#454545',
@@ -690,7 +784,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   secondCard: {
-    marginTop: 30,
     width: '85%',
     minHeight: 380,
     alignSelf: 'center',
@@ -783,14 +876,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 10,
     alignItems: 'center',
-    // alignSelf: 'center',
-    justifyContent: 'space-around',
-    width: '92%',
+    justifyContent: 'center',
+    width: '95%',
   },
   forwardButton: {
     borderWidth: 1,
     // margin: 5,
-    marginHorizontal: 5,
+    // marginHorizontal: 8,
+    marginLeft: 5,
     width: 30,
     height: 30,
     alignItems: 'center',
@@ -806,11 +899,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    margin: 5,
-    // flex: 1,
-    // paddingBottom: 15,
-    width: 45,
-    height: 45,
+    margin: 3,
+    width: 40,
+    height: 40,
     borderColor: '#873900',
     marginBottom: 10,
     borderRadius: 5,
@@ -818,6 +909,7 @@ const styles = StyleSheet.create({
   backwardButton: {
     borderWidth: 1,
     // margin: 5,
+    marginRight: 8,
     width: 30,
     height: 30,
     alignItems: 'center',
@@ -825,7 +917,7 @@ const styles = StyleSheet.create({
     borderColor: '#873900',
     borderRadius: 5,
     marginBottom: 5,
-    marginHorizontal: 5,
+    // marginHorizontal: 5,
   },
   searcFlex: {
     flexDirection: 'row',
@@ -883,5 +975,123 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  filterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '28%',
+    padding: 10,
+  },
+  filterText: {
+    fontFamily: 'RobotoSlab-Regular',
+    color: '#454545',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cartItemCount: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    borderWidth: 1,
+    borderRadius: 50,
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'white',
+    backgroundColor: '#873900',
+  },
+  cartItemCountText: {
+    color: '#fff',
+    // fontSize: 12,
+    textAlignVertical: 'center',
+    textAlign: 'center',
+  },
+  firstDropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 13,
+    alignItems: 'center',
+    borderRadius: 5,
+    width: 200,
+  },
+  firstdropdownOptions: {
+    backgroundColor: 'white',
+    width: 200,
+    height: 150,
+    borderWidth: 1,
+    borderColor: '#873900',
+    elevation: 10,
+    zIndex: 10,
+    // position: 'absolute',
+    borderRadius: 3,
+    top: 4,
+  },
+  secondDropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 13,
+    alignItems: 'center',
+    borderRadius: 5,
+    width: 160,
+  },
+  secondDropdownOptions: {
+    width: 160,
+    height: 160,
+    borderColor: '#873900',
+    borderRadius: 3,
+    zIndex: 5,
+    backgroundColor: 'white',
+    top: 3,
+    // position: 'absolute',
+    borderWidth: 1,
+  },
+  wholeAndCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 15,
+  },
+  wholeCatalouge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchCategory: {
+    flexDirection: 'row',
+    marginVertical: 15,
+    alignItems: 'center',
+    marginHorizontal: 15,
+    flex: 1,
+  },
+  filterAnd: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-start',
+    flex: 0.5,
+    paddingHorizontal: 10,
+    zIndex: 3,
+    marginVertical: 10,
+  },
+  filterDropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 5,
+    width: 200,
+    // flex: 1,
+    borderWidth: 1,
+    padding: 10,
+    borderColor: '#873900',
+  },
+  filterDropdownOptions: {
+    width: 200,
+    top: 50,
+    position: 'absolute',
+    // backgroundColor: '#FFF8F2',
+    borderWidth: 1,
+    borderRadius: 3,
+    borderColor: '#873900',
+    height: 150,
   },
 });

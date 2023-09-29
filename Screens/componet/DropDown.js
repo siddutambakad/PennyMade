@@ -7,74 +7,71 @@ import {
   StyleSheet,
 } from 'react-native';
 import VectorUp from '../../assets/images/vectorup.svg';
-import Filter from '../../assets/images/filter.svg';
-
 
 const DropdownSelector = ({
   items,
   selectedFilter,
-  setSelectedFilter,
-  setPage,
+  handleClick,
+  initialText,
+  isClicked,
+  setIsClicked,
 }) => {
-  const [isClicked, setIsClicked] = useState(false);
-
+  // const [isClicked, setIsClicked] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const handleSelect = item => {
+    setSelectedItem(item);
+    handleClick(item);
+    setIsClicked(false);
+  };
   return (
-    <View style={{flex: 1}}>
-      <View style={styles.dropAndFilter}>
-        <View style={styles.filterContent}>
-          <Filter />
-          <Text style={styles.filterText}>Filters</Text>
-        </View>
-        <View style={styles.dropdownContainer}>
-          <TouchableOpacity
-            style={styles.dropdownSelector}
-            onPress={() => setIsClicked(!isClicked)}
-            activeOpacity={1}>
-            <Text style={styles.dropdownText}>{selectedFilter.itemName}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+    <View>
+      <TouchableOpacity
+        style={styles.dropdownContainer}
+        activeOpacity={0.9}
+        onPress={() => setIsClicked(!isClicked)}>
+        <TouchableOpacity
+          style={styles.dropdownSelector}
+          onPress={() => setIsClicked(!isClicked)}
+          activeOpacity={1}>
+          <Text style={styles.dropdownText}>{initialText}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           activeOpacity={1}
-            style={styles.dropdownArrow}
-            onPress={() => setIsClicked(!isClicked)}>
-            <VectorUp
-              width={20}
-              height={10}
-              style={[isClicked && styles.reverseImage]}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.dropDown}>
-        {isClicked && (
-          <ScrollView contentContainerStyle={styles.dropdownArea}>
-            {items.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                disabled={item.itemName === selectedFilter.itemName}
-                onPress={() => {
-                  setSelectedFilter(item);
-                  setPage(1);
-                  setIsClicked(false);
-                }}>
-                <Text
-                  style={[
-                    styles.dropdownAreaText,
-                    {
-                      color:
-                        item.itemName === selectedFilter.itemName
-                          ? 'white'
-                          : 'black',
-                      backgroundColor:
-                        item.itemName === selectedFilter.itemName && '#873900',
-                    },
-                  ]}>
-                  {item.itemName}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
+          style={styles.dropdownArrow}
+          onPress={() => setIsClicked(!isClicked)}>
+          <VectorUp
+            width={20}
+            height={10}
+            style={[isClicked && styles.reverseImage]}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      {isClicked && (
+        <ScrollView style={styles.dropdownArea}>
+          {items.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              // disabled={item.name === selectedFilter.name}
+              onPress={() => {
+                handleSelect(item);
+              }}>
+              <Text
+                style={[
+                  styles.dropdownAreaText,
+                  {
+                    color:
+                      selectedItem?.name == item.name ? '#FFF8F2' : '#873900',
+                    backgroundColor:
+                      selectedItem?.name == item.name ? '#873900' : '#FFF8F2',
+                  },
+                ]}>
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -82,20 +79,11 @@ const DropdownSelector = ({
 export default DropdownSelector;
 
 const styles = StyleSheet.create({
-  dropAndFilter: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignSelf: 'center',
-    width: '100%',
-    flex: 0.5,
-    paddingHorizontal: 10,
-    
-  },
   dropdownContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '60%',
+    width: '30%',
     borderWidth: 1,
     padding: 10,
     borderColor: '#873900',
@@ -112,14 +100,14 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   dropdownArea: {
-    width: '56.5%',
-    flex: 1,
-    left: '37.5%',
-    minHeight: 100,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
+    width: '30%',
+    zIndex: 1,
+    top: 50,
+    backgroundColor: '#FFF8F2',
+    position: 'absolute',
+    borderWidth: 1,
     borderColor: '#873900',
+    overflow: 'hidden',
   },
   dropdownArrow: {
     paddingHorizontal: 10,
@@ -132,21 +120,7 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     fontWeight: '400',
   },
-  filterText: {
-    fontFamily: 'RobotoSlab-Regular',
-    // marginLeft: 7,
-    color: '#454545',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  filterContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '30%',
-    padding: 10,
-  },
   reverseImage: {
     transform: [{rotate: '180deg'}],
-    // padding: 10,
   },
 });
