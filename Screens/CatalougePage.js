@@ -8,6 +8,8 @@ import {
   TextInput,
   FlatList,
   Image,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import React, {useEffect, useState, useContext, useRef} from 'react';
 import Logo from '../assets/images/logo1.svg';
@@ -24,6 +26,7 @@ import Toast from 'react-native-toast-message';
 import Filter from '../assets/images/filter.svg';
 import Footer from './componet/Footer';
 import Card from './componet/Card';
+import {useFocusEffect} from '@react-navigation/native';
 
 const CatalougePage = ({navigation, route}) => {
   const {books, subDropdown, searchingData} = route.params;
@@ -51,8 +54,9 @@ const CatalougePage = ({navigation, route}) => {
   const [isReference, setIsReference] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [displayTitle, setDisplayTitle] = useState('');
+  const scrollViewRef = useRef(null);
+  const [showModal, setShowModal] = useState(false);
 
   const [selectedFilter, setSelectedFilter] = useState({
     name: 'Newest Items',
@@ -67,6 +71,12 @@ const CatalougePage = ({navigation, route}) => {
   ];
   const [loader, setLoader] = useState(true);
   const [openDropdown, setOpenDropdown] = useState(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
+    }, []),
+  );
 
   useEffect(() => {
     if (searchingData) {
@@ -96,7 +106,8 @@ const CatalougePage = ({navigation, route}) => {
     if (subDropdown) {
       setIsSearched(false);
       setIsReference(true);
-      // setCategory(subDropdown.category);
+      setSelectedCatagories(subDropdown.itemName);
+      setCategory(subDropdown.category);
       getSubCatagories(subDropdown.category);
       setReference(subDropdown.reference);
       setSelectedValue(subDropdown.name);
@@ -104,162 +115,149 @@ const CatalougePage = ({navigation, route}) => {
   }, [subDropdown, category]);
 
   useEffect(() => {
-    // Check if 'isSearched' is true. If true, execute the 'handleSearch' function.
     if (isSearched) {
-      /////it will print the searched products when it is true
       handleSearch();
     } else if (isReference) {
       getSearchBySubCat(category, reference, selectedFilter.type, page);
     } else {
-      // If 'isSearched' is false, execute 'getPerticularCategories' function
-      // with the specified parameters: 'selectedFilter.type', 'page', and 'category'.
-      getPerticularCategories(selectedFilter.type, page, category);
+      getPerticularCategories(category, selectedFilter.type, page);
     }
-  }, [selectedFilter.type, page, category, reference]);
+  }, [category, reference, selectedFilter.type, page]);
 
-  const getPerticularCategories = async (filtertype, page, category) => {
-    // Set the loader to true to indicate that data is being fetched.
+  const getPerticularCategories = async (category, filtertype, page) => {
     setLoader(true);
 
     // set the API URL based on the provided parameters.
     const apiUrls = `${APIS.getParticularItems}${category}/${filtertype}/${page}/`;
 
-    try {
-      // Send a GET request to the  API URL using axios.
-      const response = await axios.get(apiUrls);
-
-      // Set the 'particularItems' state with the data received from the API response.
-      setParticularItems(response?.data?.data);
-      setContentData(response?.data?.categorydescription[0] || null);
-    } catch (error) {
-      console.log('response', error);
-    } finally {
-      // Whether the request succeeds or fails, set the loader back to false
-      // to indicate that data fetching is complete.
-      setLoader(false);
-    }
-  };
-
-  const getCategoryNumber = category => {
-    if (category && contextCategories) {
-      const data = contextCategories.filter(item => item.category === category);
-      if (data.length > 0) {
-        return data[0].category;
-      }
-    }
+    // Send a GET request to the API URL using axios and handle the response and errors.
+    axios
+      .get(apiUrls)
+      .then(response => {
+        const res = response?.data?.data;
+        if (res) {
+          // Set the 'particularItems' state with the data received from the API response.
+          setParticularItems(res);
+          setContentData(response?.data?.categorydescription[0] || null);
+        } else {
+          setParticularItems([]);
+          setContentData(null);
+        }
+      })
+      .catch(error => {
+        setParticularItems([]);
+        setShowModal(true);
+        console.log('Error: PerticularCategories', error);
+      })
+      .finally(() => {
+        setLoader(false);
+      });
   };
 
   const searchApi = async searchParams => {
     setIsSearched(true);
     setLoader(true);
     setIsReference(false);
-    try {
-      const response = await axios.post(APIS.getSearchItems, searchParams);
 
-      // Check if "searchresults" key exists in the response
-      if (response?.data?.searchresults) {
-        const searchData = response?.data; // Extract search results
-        let _searchData = {...searchData, data: searchData.searchresults};
-        // console.log('Search Response _searchData:', _searchData?.data);
-        setParticularItems(_searchData);
-        setDisplayTitle(`Showing results for '${searchKeyword}'`);
-      } else {
-        // Handle the case when "searchresults" key is not found
-        setParticularItems([]);
-      }
-    } catch (error) {
-      console.log('responsce search error in catalouge', error);
-      Toast.show({
-        type: 'tomatoToast',
-        text1: 'No Data Found',
-        visibilityTime: 2500,
-        position: 'bottom',
+    // Send a POST request to the API URL using axios and handle the response and errors.
+    axios
+      .post(APIS.getSearchItems, searchParams)
+      .then(response => {
+        // Check if "searchresults" key exists in the response
+        const res = response?.data?.searchresults;
+        if (res) {
+          const searchData = response?.data; // Extract search results
+          let _searchData = {...searchData, data: searchData.searchresults};
+          setParticularItems(_searchData);
+          setDisplayTitle(`Showing results for '${searchKeyword}'`);
+        }
+      })
+      .catch(error => {
+        if (error.response) {
+          if (error.message === 'Network Error') {
+            // Handle network error here
+            console.log('Network error:', error);
+            setShowModal(true);
+          } else {
+            console.log('Server responded with:', error.response.status);
+            console.log('Response data:', error.response.data);
+            setDisplayTitle(`Showing results for '${searchKeyword}'`);
+            setParticularItems([]);
+            Toast.show({
+              type: 'tomatoToast',
+              text1: 'No Data Found',
+              visibilityTime: 2500,
+              position: 'bottom',
+            });
+          }
+        }
+      })
+      .finally(() => {
+        setLoader(false);
       });
-    } finally {
-      setLoader(false);
-    }
   };
 
   const handleSearch = async () => {
-    // setIsSearched(true);
-    // setLoader(true);
-    // setIsReference(false);
     const searchParams = {
       term: searchKeyword,
       adesc: selectedOption3 ? 1 : 0,
-      category_number: selectedOption2
-        ? getCategoryNumber(selectedCatagories)
-        : 0,
+      category_number: selectedOption2 ? category : 0,
+      // ? getCategoryNumber(selectedCatagories)
+      // : 0,
       sortby: selectedFilter.type,
       page: page,
     };
     searchApi(searchParams);
-    // try {
-    //   ///body for the post api
-    //   const searchParams = {
-    //     term: searchKeyword,
-    //     adesc: selectedOption3 ? 1 : 0,
-    //     category_number: selectedOption2 ? getCategoryNumber(selectedCatagories) : 0,
-    //     sortby: selectedFilter.type,
-    //     page: page,
-    //   };
-    //   console.log("🚀 ~ file: CatalougePage.js:167 ~ handleSearch ~ searchParams:", searchParams)
-    //   // return
-    //   const response = await axios.post(APIS.getSearchItems, searchParams);
-    //   console.log("🚀 ~ file: CatalougePage.js:169 ~ handleSearch ~ response:", response)
-
-    //   // Check if "searchresults" key exists in the response
-    //   if (response?.data?.searchresults) {
-    //     const searchData = response?.data; // Extract search results
-    //     let _searchData = {...searchData, data: searchData.searchresults};
-    //     // console.log('Search Response _searchData:', _searchData?.data);
-    //     setParticularItems(_searchData);
-    //     setDisplayTitle(`Showing results for '${searchKeyword}'`);
-    //   } else {
-    //     // Handle the case when "searchresults" key is not found
-    //     setParticularItems([]);
-    //   }
-    // } catch (error) {
-    //   console.log('responsce search error in catalouge', error);
-    //   Toast.show({
-    //     type: 'tomatoToast',
-    //     text1: 'No Data Found',
-    //     visibilityTime: 2500,
-    //     position: 'bottom',
-    //   });
-    // } finally {
-    //   setLoader(false);
-    // }
   };
 
   const getSearchBySubCat = async (category, reference, filtertype, page) => {
     setLoader(true);
     const url = `${APIS.getSearchByCat}/${category}/${reference}/${filtertype}/${page}/`;
-
-    try {
-      const response = await axios.get(url);
-      setParticularItems(response?.data?.data);
-    } catch (error) {
-      console.log('Responce subcat dropdown', error);
-    } finally {
-      setLoader(false);
-    }
+    // Send a GET request to the API URL using axios and handle the response and errors.
+    axios
+      .get(url)
+      .then(response => {
+        const res = response?.data?.data;
+        if (res) {
+          setParticularItems(res);
+        }
+      })
+      .catch(error => {
+        if (error.response) {
+          console.log(
+            'Server responded with in catlougepage:',
+            error.response.status,
+          );
+          console.log('Response data in catlougepage:', error.response.data);
+        }
+        setShowModal(true);
+        setParticularItems([]);
+      })
+      .finally(() => {
+        setLoader(false);
+      });
   };
 
   const handleCart = item => {
     addToCart(item);
   };
 
+  const handleScrollUP = () => {
+    scrollViewRef.current.scrollTo({x: 30, y: 0, animated: true});
+  };
+
   const renderBooksItem = ({item, index}) => {
     return (
       <Card
-        imgSource={item.image && item.image.length > 0 ? item.image[0] : null}
+        imgSource={item.image && item.image.length > 0 && item.image[0]}
         author={item.author}
         price={item.price}
         title={item.title}
         description={item.description}
         handlePress={() => {
-          handleCart(item.sysid);
+          setTimeout(() => {
+            handleCart(item.sysid);
+          }, 1000);
         }}
         handlePressCard={() => {
           navigation.navigate('ProductDetail', {sysid: item.sysid});
@@ -344,6 +342,7 @@ const CatalougePage = ({navigation, route}) => {
       item => item.value != '',
     );
     let data4 = [...new Map(data3.map(item => [item.value, item])).values()];
+
     return (
       <View style={styles.paginationFlex}>
         {particularItems.totalpages > 1 &&
@@ -353,6 +352,7 @@ const CatalougePage = ({navigation, route}) => {
                 if (page > 1) {
                   setPage(parseInt(page - 1));
                 }
+                handleScrollUP();
               }}
               disabled={page <= 1 ? true : false}
               style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
@@ -370,6 +370,7 @@ const CatalougePage = ({navigation, route}) => {
             ]}
             onPress={() => {
               setPage(parseInt(item.value));
+              handleScrollUP();
             }}>
             <Text
               style={{
@@ -387,6 +388,7 @@ const CatalougePage = ({navigation, route}) => {
               if (page < particularItems.totalpages) {
                 setPage(page + 1);
               }
+              handleScrollUP();
             }}
             disabled={page === particularItems.totalpages}
             style={[
@@ -413,7 +415,10 @@ const CatalougePage = ({navigation, route}) => {
           onChangeText={text => setInputSearch(text)}
           value={inputSearch}
         />
-        <TouchableOpacity onPress={handleGoToPage}>
+        <TouchableOpacity
+          onPress={() => {
+            handleGoToPage();
+          }}>
           <Text style={styles.goButton}>Go {'>'}</Text>
         </TouchableOpacity>
       </View>
@@ -432,6 +437,7 @@ const CatalougePage = ({navigation, route}) => {
     } else {
       setError('Page number should be in allowed range');
     }
+    handleScrollUP();
   };
 
   const toggleDropdown = index => {
@@ -477,17 +483,20 @@ const CatalougePage = ({navigation, route}) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={{paddingLeft: 10}}
-            onPress={() => navigation.openDrawer()}>
+            onPress={() => {
+              navigation.openDrawer();
+            }}>
             <Menu width={43} height={43} />
           </TouchableOpacity>
         </View>
       </View>
       <ScrollView
+        ref={scrollViewRef}
         nestedScrollEnabled={true}
         style={styles.container}
         showsVerticalScrollIndicator={false}>
         {/* first category list dropdown */}
-        {particularItems?.data && (
+        {particularItems && (
           <View
             style={{
               flex: 1,
@@ -523,7 +532,7 @@ const CatalougePage = ({navigation, route}) => {
           </View>
         )}
         {/* subcategory dropdowns */}
-        {particularItems?.data && (
+        {particularItems && (
           <View
             style={{
               marginHorizontal: 8,
@@ -586,13 +595,11 @@ const CatalougePage = ({navigation, route}) => {
             style={styles.wholeCatalouge}
             activeOpacity={1}
             onPress={() => {
-              setSelectedOption1('Whole Catalogue');
+              setSelectedOption1(true);
               setSelectedOption2(false);
             }}>
             <View style={styles.circle}>
-              {selectedOption1 === 'Whole Catalogue' && (
-                <View style={styles.dotCircle}></View>
-              )}
+              {selectedOption1 && <View style={styles.dotCircle}></View>}
             </View>
             <Text style={styles.radioText}>Whole Catalogue</Text>
           </TouchableOpacity>
@@ -662,13 +669,15 @@ const CatalougePage = ({navigation, route}) => {
           </View>
         )}
         {/* rendering the books  */}
-        <FlatList
-          // nestedScrollEnabled={true}
-          scrollEnabled={false}
-          data={particularItems?.data}
-          // style={{marginTop: isClicked ? -145 : 15}}
-          renderItem={renderBooksItem}
-        />
+        {particularItems?.data && particularItems.data.length > 0 ? (
+          <FlatList
+            scrollEnabled={false}
+            data={particularItems?.data}
+            renderItem={renderBooksItem}
+          />
+        ) : (
+          <Text style={styles.noDataText}>No data found</Text>
+        )}
         {/* rendering the pagination buttons  */}
         {particularItems?.data && (
           <View style={styles.paginationAndSearch}>
@@ -676,6 +685,27 @@ const CatalougePage = ({navigation, route}) => {
             {renderSearch()}
           </View>
         )}
+        <Modal visible={showModal} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowModal(false);
+            }}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalText}>
+                  {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setShowModal(false);
+                  }}>
+                  <Text style={styles.modalButtonText}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
         {/* footer content */}
         <Footer />
       </ScrollView>
@@ -700,7 +730,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#873900',
     borderRadius: 50,
-    // paddingRight: 10,
     marginRight: 7,
   },
   headers: {
@@ -727,7 +756,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginHorizontal: 10,
     marginVertical: 15,
-    // backgroundColor: 'red',
   },
   inputsearch: {
     borderWidth: 1,
@@ -881,9 +909,7 @@ const styles = StyleSheet.create({
   },
   forwardButton: {
     borderWidth: 1,
-    // margin: 5,
-    // marginHorizontal: 8,
-    marginLeft: 5,
+    marginHorizontal: 5,
     width: 30,
     height: 30,
     alignItems: 'center',
@@ -899,17 +925,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    margin: 3,
-    width: 40,
-    height: 40,
+    margin: 2.5,
+    width: 45,
+    height: 45,
     borderColor: '#873900',
     marginBottom: 10,
     borderRadius: 5,
   },
   backwardButton: {
     borderWidth: 1,
-    // margin: 5,
-    marginRight: 8,
+    marginHorizontal: 5,
     width: 30,
     height: 30,
     alignItems: 'center',
@@ -917,7 +942,6 @@ const styles = StyleSheet.create({
     borderColor: '#873900',
     borderRadius: 5,
     marginBottom: 5,
-    // marginHorizontal: 5,
   },
   searcFlex: {
     flexDirection: 'row',
@@ -1004,7 +1028,6 @@ const styles = StyleSheet.create({
   },
   cartItemCountText: {
     color: '#fff',
-    // fontSize: 12,
     textAlignVertical: 'center',
     textAlign: 'center',
   },
@@ -1024,7 +1047,6 @@ const styles = StyleSheet.create({
     borderColor: '#873900',
     elevation: 10,
     zIndex: 10,
-    // position: 'absolute',
     borderRadius: 3,
     top: 4,
   },
@@ -1044,7 +1066,6 @@ const styles = StyleSheet.create({
     zIndex: 5,
     backgroundColor: 'white',
     top: 3,
-    // position: 'absolute',
     borderWidth: 1,
   },
   wholeAndCategory: {
@@ -1079,7 +1100,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 5,
     width: 200,
-    // flex: 1,
     borderWidth: 1,
     padding: 10,
     borderColor: '#873900',
@@ -1088,10 +1108,54 @@ const styles = StyleSheet.create({
     width: 200,
     top: 50,
     position: 'absolute',
-    // backgroundColor: '#FFF8F2',
     borderWidth: 1,
     borderRadius: 3,
     borderColor: '#873900',
     height: 150,
+  },
+  noDataText: {
+    color: 'black',
+    fontSize: 20,
+    marginHorizontal: 18,
+    fontFamily: 'OpenSans-Regular',
+    fontWeight: '600',
+    marginBottom: 50,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#818589cc',
+  },
+  modalContent: {
+    backgroundColor: '#FFF8F2',
+    borderRadius: 8,
+    height: 200,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalText: {
+    color: '#454545',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF8F2',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#873900',
+    borderRadius: 3,
+    width: 100,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
   },
 });

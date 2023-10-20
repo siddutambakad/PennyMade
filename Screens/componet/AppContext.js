@@ -11,33 +11,42 @@ export const CategoriesProvider = ({children}) => {
   const [contextCategories, setContextCategories] = useState([]);
   const [selectedSubCatagories, setSelectedSubCatagories] = useState([]);
   const [cartItems, setCartItems] = useState([]);
+  const [viewCollectible, setViewCollectible] = useState([]);
 
   // trigger and get search by data
-  const getSubCatagories = async category_Id => {
+  // const getSubCatagories = async category_Id => {
+  //   // console.log('-------------selectedcatory', category_Id);
+  //   try {
+  //     const apiUrl = `${APIS.getSubCategories}/${category_Id}/`;
+  //     const response = await axios.get(apiUrl);
+  //     setSelectedSubCatagories(response.data?.data);
+  //   } catch (error) {
+  //     setSelectedSubCatagories([]);
+  //     console.log('selectedcatgories', error);
+  //   }
+  // };
+
+  const getSubCatagories = category_Id => {
     // console.log('-------------selectedcatory', category_Id);
-    try {
-      const apiUrl = `${APIS.getSubCategories}/${category_Id}/`;
-      const response = await axios.get(apiUrl);
-      setSelectedSubCatagories(response.data?.data);
-    } catch (error) {
-      setSelectedSubCatagories([]);
-      console.log('selectedcatgories', error);
-    }
+    const apiUrl = `${APIS.getSubCategories}/${category_Id}/`;
+
+    // Send a GET request to the API URL using axios and handle the response and errors.
+    axios
+      .get(apiUrl)
+      .then(response => {
+        setSelectedSubCatagories(response.data?.data);
+      })
+      .catch(error => {
+        setSelectedSubCatagories([]);
+        console.log('selectedcatgories', error);
+      });
   };
 
   const getCollectibles = async () => {
     try {
-      const apiUrl = 'http://54.226.77.97:81/view/collectable_items/';
+      const apiUrl = `http://54.226.77.97:81/view/collectable_items/`;
       const response = await axios.get(apiUrl);
-
-      console.log('collectible response', response?.data?.collectableitems);
-      // Store the data in AsyncStorage
-      let storedItem = JSON.stringify(response?.data?.collectableitems);
-      await AsyncStorage.setItem('viewCollectible', storedItem);
-
-      console.log('data saved successfully', storedItem);
-      // Update the state
-      // setViewCollectible(response?.data?.collectableitems);
+      setViewCollectible(response?.data?.collectableitems);
     } catch (error) {
       console.log('collectible error', error);
     }
@@ -85,6 +94,8 @@ export const CategoriesProvider = ({children}) => {
         setCartItems,
         addToCart,
         removeItem,
+        getCollectibles,
+        viewCollectible,
       }}>
       {children}
     </CategoriesContext.Provider>

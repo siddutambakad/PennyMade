@@ -5,6 +5,8 @@ import {
   ImageBackground,
   TouchableOpacity,
   ScrollView,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import React, {useContext, useEffect, useState} from 'react';
 import Logo from '../assets/images/logo1.svg';
@@ -16,13 +18,16 @@ import axios from 'axios';
 import {APIS} from '../src/configs/apiUrls';
 import Loader from './componet/Loader/Loader';
 import Footer from './componet/Footer';
+
 // import HTMLView from 'react-native-htmlview';
 
 const ContactUs = ({navigation}) => {
-  const {contextCategories} = useContext(CategoriesContext);
+  const {contextCategories, getSubCatagories} = useContext(CategoriesContext);
   const [isOpen, setIsOpen] = useState(false);
   const [contactData, setContactData] = useState([]);
   const [loader, setLoader] = useState(false);
+  const [category, setCategory] = useState(1);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     getContactUs();
@@ -44,8 +49,6 @@ const ContactUs = ({navigation}) => {
     ///so in product detail api we are getting category id .. so getting name based on category id
     if (category) {
       let data = contextCategories.filter(item => item.category == category);
-      //   setSelectedCatagories({name});
-      ///the data will come arrays
       return data[0].name;
     }
   };
@@ -98,9 +101,17 @@ const ContactUs = ({navigation}) => {
           }}
           isGradient={true}
           options={contextCategories}
-          handleClick={item => {
+          handleClick={async item => {
+            setLoader(true);
+            const id = item?.category;
+            setCategory(id);
+
+            if (id) {
+              await getSubCatagories(id);
+              setLoader(false);
+            }
             navigation.navigate('CatalougePage', {
-              books: {category: item.category, name: getName(item.category)},
+              books: {category: id, name: getName(item.category)},
             });
           }}
           isClicked={isOpen}
@@ -320,6 +331,27 @@ const ContactUs = ({navigation}) => {
             </View>
           )}
         </View>
+        <Modal visible={showModal} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowModal(false);
+            }}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalText}>
+                  {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setShowModal(false);
+                  }}>
+                  <Text style={styles.modalButtonText}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
         <Footer />
       </ScrollView>
       {loader && <Loader />}
@@ -435,5 +467,42 @@ const styles = StyleSheet.create({
     color: 'black',
     marginVertical: 10,
     textDecorationLine: 'underline',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#818589cc',
+  },
+  modalContent: {
+    backgroundColor: '#FFF8F2',
+    borderRadius: 8,
+    height: 200,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalText: {
+    color: '#454545',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF8F2',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#873900',
+    borderRadius: 3,
+    width: 100,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
   },
 });

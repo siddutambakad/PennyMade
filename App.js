@@ -16,7 +16,14 @@ import SplashScreen from './Screens/SplashScreen';
 import CatalougePage from './Screens/CatalougePage';
 import {CategoriesProvider} from './Screens/componet/AppContext';
 import Toast from 'react-native-toast-message';
-import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Dimensions,
+} from 'react-native';
 import ProductDetail from './Screens/ProductDetail';
 import CartScreen from './Screens/CartScreen';
 import Home from './assets/images/homeicon.svg';
@@ -29,14 +36,14 @@ import OrderSummary from './Screens/OrderSummary';
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
-const StackNavigator = () => {
-  // const [showSplash, setShowSplash] = useState(true);
+function StackNavigator() {
+  const [showSplash, setShowSplash] = useState(true);
 
-  // useEffect(() => {
-  //   setTimeout(() => {
-  //     setShowSplash(false);
-  //   }, 1000);
-  // }, []);
+  useEffect(() => {
+    setTimeout(() => {
+      setShowSplash(false);
+    }, 1000);
+  }, []);
   return (
     <Stack.Navigator>
       {/* {showSplash && (
@@ -73,7 +80,7 @@ const StackNavigator = () => {
       />
     </Stack.Navigator>
   );
-};
+}
 
 const CustomDrawerContent = props => {
   const {navigation} = props;
@@ -93,7 +100,67 @@ const CustomDrawerContent = props => {
         </TouchableOpacity>
         <Text style={styles.pennyText}>PENNYMEAD.COM</Text>
       </View>
-      <DrawerItemList {...props} />
+      {/* <DrawerItemList {...props} /> */}
+      <DrawerItem
+        label={'Home'}
+        icon={() => {
+          return <Home width={42} height={42} />;
+        }}
+        onPress={() => {
+          navigation.navigate('HomePage');
+        }}
+        style={{marginLeft: 30}}
+        labelStyle={{
+          color: '#FFF8F2',
+          fontSize: 18,
+          fontFamily: 'RobotoSlab-Regular',
+        }}
+      />
+      <DrawerItem
+        label={'About Us'}
+        icon={() => {
+          return <AboutUS width={42} height={42} />;
+        }}
+        onPress={() => {
+          navigation.navigate('AboutUs');
+        }}
+        style={{marginLeft: 30}}
+        labelStyle={{
+          color: '#FFF8F2',
+          fontSize: 18,
+          fontFamily: 'RobotoSlab-Regular',
+        }}
+      />
+      <DrawerItem
+        label={'Track Order'}
+        icon={() => {
+          return <Track width={42} height={42} />;
+        }}
+        onPress={() => {
+          navigation.navigate('TrackOrder');
+        }}
+        style={{marginLeft: 30}}
+        labelStyle={{
+          color: '#FFF8F2',
+          fontSize: 18,
+          fontFamily: 'RobotoSlab-Regular',
+        }}
+      />
+      <DrawerItem
+        label={'Contact Us'}
+        icon={() => {
+          return <Contact width={42} height={42} />;
+        }}
+        onPress={() => {
+          navigation.navigate('ContactUs');
+        }}
+        style={{marginLeft: 30}}
+        labelStyle={{
+          color: '#FFF8F2',
+          fontSize: 18,
+          fontFamily: 'RobotoSlab-Regular',
+        }}
+      />
       <View style={styles.line}></View>
       <View style={styles.imgContainer}>
         <Image
@@ -157,59 +224,27 @@ const DrawerNavigator = () => {
         component={StackNavigator}
         options={{
           headerShown: false,
-          drawerActiveBackgroundColor: '#873900',
-          drawerInactiveBackgroundColor: '#873900',
-          drawerIcon: () => <Home width={42} height={42} />,
-          drawerLabelStyle: {
-            color: '#FFF8F2',
-            fontSize: 18,
-            fontFamily: 'RobotoSlab-Regular',
-          },
         }}
       />
       <Drawer.Screen
         name="AboutUs"
         component={AboutUs}
         options={{
-          drawerActiveBackgroundColor: '#873900',
-          drawerInactiveBackgroundColor: '#873900',
           headerShown: false,
-          drawerIcon: () => <AboutUS width={42} height={42} />,
-          drawerLabelStyle: {
-            color: '#FFF8F2',
-            fontSize: 18,
-            fontFamily: 'RobotoSlab-Regular',
-          },
         }}
       />
       <Drawer.Screen
         name="TrackOrder"
         component={TrackOrder}
         options={{
-          drawerActiveBackgroundColor: '#873900',
-          drawerInactiveBackgroundColor: '#873900',
           headerShown: false,
-          drawerIcon: () => <Track width={42} height={42} />,
-          drawerLabelStyle: {
-            color: '#FFF8F2',
-            fontSize: 18,
-            fontFamily: 'RobotoSlab-Regular',
-          },
         }}
       />
       <Drawer.Screen
         name="ContactUs"
         component={ContactUs}
         options={{
-          drawerActiveBackgroundColor: '#873900',
-          drawerInactiveBackgroundColor: '#873900',
           headerShown: false,
-          drawerIcon: () => <Contact width={42} height={42} />,
-          drawerLabelStyle: {
-            color: '#FFF8F2',
-            fontSize: 18,
-            fontFamily: 'RobotoSlab-Regular',
-          },
         }}
       />
     </Drawer.Navigator>
@@ -218,6 +253,7 @@ const DrawerNavigator = () => {
 
 const App = () => {
   const navigationRef = useRef();
+  const {width, height} = Dimensions.get('window');
   const toastConfig = {
     tomatoToast: ({text1}) => (
       <View
@@ -256,7 +292,8 @@ const App = () => {
             fontFamily: 'RobotoSlab-Regular',
             textAlign: 'center',
           }}>
-          {text1}{' '}
+          {text1}
+          {'   '}
         </Text>
         <TouchableOpacity
           style={{alignItems: 'center'}}
@@ -274,15 +311,50 @@ const App = () => {
         </TouchableOpacity>
       </View>
     ),
+    alertToast: ({text1}) => (
+      <View
+        style={{
+          backgroundColor: '#818589cc',
+          height: height,
+          width: width,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: -40,
+        }}>
+        <View
+          style={{
+            padding: 15,
+            backgroundColor: '#FFF8F2',
+            alignItems: 'center',
+            borderRadius: 5,
+            width: 300,
+            height: 150,
+          }}>
+          <Text
+            style={{
+              color: 'black',
+              fontSize: 16,
+              fontWeight: '600',
+              fontFamily: 'RobotoSlab-Regular',
+              textAlign: 'center',
+              padding: 20,
+            }}>
+            {text1}
+          </Text>
+        </View>
+      </View>
+    ),
   };
 
   return (
     <SafeAreaProvider>
       <CategoriesProvider>
         <NavigationContainer ref={navigationRef}>
+          {/* <StackNavigator> */}
           <DrawerNavigator>
             <CustomDrawerContent />
           </DrawerNavigator>
+          {/* </StackNavigator> */}
         </NavigationContainer>
         <Toast config={toastConfig} />
       </CategoriesProvider>

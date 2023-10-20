@@ -13,6 +13,6 @@ export const APIS = {
   getCountryList: `${BASE_URL}/view/countries/`,
   getOrderSummary: `${BASE_URL}/view/orderSummary`,
   getEmailvalue: `${BASE_URL}/view/verifyemail/`,
-  
-  // `11187/rajeshwari.g@dollarbirdinc.com/`
+  getVerifyOtp: `${BASE_URL}/view/verifyotp/`,
+  getTrackByEmail: `${BASE_URL}/view/getOrderdetailbyEmail`,
 };

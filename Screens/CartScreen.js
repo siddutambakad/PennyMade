@@ -9,8 +9,12 @@ import {
   ScrollView,
   TextInput,
   Dimensions,
+  findNodeHandle,
+  Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import React, {useContext, useState, useEffect} from 'react';
+import React, {useContext, useState, useEffect, useRef} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
@@ -21,11 +25,13 @@ import CheckBox from '../assets/images/checkbox.svg';
 import {APIS} from '../src/configs/apiUrls';
 import axios from 'axios';
 import Card from './componet/Card';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {LogBox} from 'react-native';
 import Loader from './componet/Loader/Loader';
 import EmptyIcon from '../assets/images/emptycarticon.svg';
 import Trash from '../assets/images/trashicon.svg';
+import {useFocusEffect} from '@react-navigation/native';
+// import Toast from 'react-native-toast-message';
+// import Rename from '../assets/images/rename.svg';
+import {LogBox} from 'react-native';
 
 const CartScreen = ({navigation}) => {
   const {
@@ -34,18 +40,16 @@ const CartScreen = ({navigation}) => {
     addToCart,
     removeItem,
     setCartItems,
-    // getCollectibles,
-    // viewCollectible,
+    getCollectibles,
+    viewCollectible,
+    getSubCatagories,
   } = useContext(CategoriesContext);
-
-  // LogBox.ignoreAllLogs();
+  LogBox.ignoreAllLogs();
   const [isOpen, setIsOpen] = useState(false);
-  const [loader, setLoader] = useState(true);
+  const [loader, setLoader] = useState(false);
   const [selectedOption1, setSelectedOption1] = useState(false);
   const [selectedOption2, setSelectedOption2] = useState(false);
   const [viewBasket, setViewBasket] = useState([]);
-  const [viewCollectible, setViewCollectible] = useState('');
-  // console.log("🚀 ~ file: CartScreen.js:48 ~ CartScreen ~ viewCollectible:", viewCollectible)
   const [countriesList, setCountriesList] = useState([]);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -53,6 +57,18 @@ const CartScreen = ({navigation}) => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [quantity, setQuantity] = useState('');
+  const [category, setCategory] = useState(1);
+  const scrollViewRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const address1InputRef = useRef(null);
+  const postalInputRef = useRef(null);
+  const phoneNumberInputRef = useRef(null);
+  const countryInputRef = useRef(null);
+  const paymentRef = useRef(null);
+  const termsAndConditionRef = useRef(null);
+  const countyRef = useRef(null);
+  const [showModal, setShowModal] = useState(false);
 
   const [userDetails, setUserDetails] = useState({
     PhoneNumber: '',
@@ -135,13 +151,9 @@ const CartScreen = ({navigation}) => {
   ];
 
   const toggleDropdown = index => {
-    // setIsOpen(false);
-    // setIsClicked(false);
     if (index === visible) {
-      // Clicking on the currently open dropdown, close it
       setVisible(null);
     } else {
-      // Clicking on a different dropdown, open it and close the previously open one
       setVisible(index);
     }
   };
@@ -156,33 +168,110 @@ const CartScreen = ({navigation}) => {
     setCartItems(updatedCartItems);
   };
 
+  const scrollToInput = ref => {
+    ref.current.measureLayout(
+      findNodeHandle(scrollViewRef.current),
+      (x, y, width, height) => {
+        const screenY = Dimensions.get('window').height;
+        const scrollToY = Math.max(0, y - (screenY - height) / 2); // Calculate the scroll position
+        scrollViewRef.current.scrollTo({y: scrollToY, animated: true});
+      },
+    );
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
+    }, []),
+  );
+
   useEffect(() => {
-    getStoredItems();
+    getCollectibles();
   }, []);
 
   useEffect(() => {
-    getCountryLists();
     viewBasketItems();
   }, [cartItems]);
+
+  useEffect(() => {
+    getCountryLists();
+  }, []);
+
   ///////////////variable for sysid which it has been sent from the add to cart to cart
   const Sysid = cartItems.map(item => {
     return item.sysid;
   });
 
-  const viewBasketItems = async () => {
+  const checkEmailRegistration = () => {
     setLoader(true);
-    try {
-      // Define the API endpoint and request body
-      const apiUrl = 'http://54.226.77.97:81/view/viewbasket/';
-      const requestBody = {
-        basketItems: Sysid, // Replace with the sysid you want to send
-      };
+    const apiurl = `http://54.226.77.97:81/view/checkuser/${userDetails.email}/`;
 
+    // Send a GET request to the API URL using axios and handle the response and errors.
+    axios
+      .get(apiurl)
+      .then(apiResponse => {
+        const res = apiResponse?.data?.data[0]; // Access the first item in the array
+
+        if (res) {
+          setUserDetails({
+            ...userDetails, // Spread the existing userDetails
+            name: res.name || '',
+            Address1: res.address1 || '',
+            PhoneNumber: res.hphone || '',
+            country: res.county || '',
+            county: res.country || '',
+            postal: res.postcode || '',
+          });
+          setShowError({
+            ...showError,
+            country: false,
+            name: false,
+            Address1: false,
+            PhoneNumber: false,
+            county: false,
+            postal: false,
+            email: '', // Clear the email error message
+          });
+          setSelectedCountry(res.country);
+        }
+      })
+      .catch(error => {
+        console.log('Server responded with:', error.response.status);
+        console.log('Response data:', error.response.data.message);
+        setUserDetails({
+          name: '',
+          Address1: '',
+          PhoneNumber: '',
+          country: '',
+          county: '',
+          postal: '',
+        });
+        // Explicitly set the email field to retain its value
+        setUserDetails({
+          email: userDetails.email,
+        });
+      })
+      .finally(() => {
+        setLoader(false);
+      });
+  };
+
+  const viewBasketItems = async () => {
+    if (cartItems.length === 0) {
+      // If the cart is empty, there's no need to make the request
+      setViewBasket([]);
+      return;
+    }
+    // Define the API endpoint and request body
+    const apiUrl = 'http://54.226.77.97:81/view/viewbasket/';
+    const requestBody = {
+      basketItems: Sysid, // Replace with the sysid you want to send
+    };
+
+    try {
       // Make a POST request to the API
       const response = await axios.post(apiUrl, requestBody);
-
       let _response = response?.data?.result || [];
-      // Assuming the response contains the cart data, you can access it here
       if (_response.length > 0) {
         const mergedArray = _response.map(item1 => {
           const matchingItem = cartItems.find(
@@ -190,48 +279,32 @@ const CartScreen = ({navigation}) => {
           );
           return {...item1, ...matchingItem};
         });
-
         setViewBasket(mergedArray);
       }
-
-      // console.log("vewbasket==========>>>>>", response.data.result)
     } catch (error) {
       // Handle any errors that may occur during the request
-      console.error('Error fetching cart data:', error);
+      console.log('Error fetching cart data:', error);
+      setShowModal(true);
       setViewBasket([]);
     } finally {
-      setLoader(false);
+      // Any cleanup or final steps can be done here
     }
   };
-
-  const getStoredItems = async () => {
-    let storedItems = await AsyncStorage.getItem('viewCollectible');
-    storedItems = JSON.parse(storedItems);
-    setViewCollectible(storedItems);
-    // console.log('retrived items', storedItems);
-  };
-  // const getCollectibles = async () => {
-  //   try {
-  //     const apiUrl = `http://54.226.77.97:81/view/collectable_items/`;
-  //     const response = await axios.get(apiUrl)
-  //     console.log('collectible response', response?.data?.collectableitems);
-  //     setViewCollectible(response?.data?.collectableitems);
-  //   } catch (error) {
-  //     console.log('collectible error', error);
-  //   }
-  // }
 
   const getCountryLists = async () => {
     setLoader(true);
     const url = `${APIS.getCountryList}`;
-    try {
-      const responce = await axios.get(url);
-      setCountriesList(responce?.data?.data);
-      // console.log('responce country datas', responce?.data?.data);
-    } catch (error) {
-      console.log('responce country error', error);
-      setLoader(false);
-    }
+    axios
+      .get(url)
+      .then(responce => {
+        setCountriesList(responce?.data?.data);
+      })
+      .then(error => {
+        console.log('responce country error', error);
+      })
+      .finally(() => {
+        setLoader(false);
+      });
   };
 
   const renderViewBasket = ({item, index}) => {
@@ -296,6 +369,10 @@ const CartScreen = ({navigation}) => {
     );
   };
 
+  const handleCart = item => {
+    addToCart(item);
+  };
+
   const renderCollectibleItem = ({item, index}) => {
     return (
       <Card
@@ -303,12 +380,24 @@ const CartScreen = ({navigation}) => {
         author={item.author}
         price={item.price}
         title={item.title}
+        // isLoading={}
         description={item.description}
-        handlePressCard={() => {
+        handlePressCard={async () => {
+          setLoader(true);
+          const id = item?.category;
+          setCategory(id);
+
+          if (id) {
+            await getSubCatagories(id);
+            setLoader(false);
+          }
           navigation.navigate('ProductDetail', {sysid: item.sysid});
         }}
         handlePress={() => {
-          addToCart(item.sysid);
+          setLoader(false);
+          setTimeout(() => {
+            handleCart(item.sysid);
+          }, 1000);
         }}
         cardIndex={index} // Pass the index of the card
       />
@@ -331,8 +420,6 @@ const CartScreen = ({navigation}) => {
     pricePerItem: parseFloat(item.price), // Convert price to a floating-point number
   }));
 
-  // const filterdCountries = countriesList.map(country => country.printable_name);
-
   const postOrderSummary = () => {
     const apiData = {
       name: userDetails.name,
@@ -351,18 +438,30 @@ const CartScreen = ({navigation}) => {
     orderPlacingApi(apiData);
   };
   const orderPlacingApi = async apiData => {
+    apiData.address2 = apiData.address2 || '';
     setLoader(true);
     try {
       const response = await axios.post(
         `http://54.226.77.97:81/view/orderplacing/`,
         apiData,
       );
-      console.log('API Response:', response.data);
-      navigation.navigate('OrderSummary', {summary: response.data});
+      const res_ponse = response.data;
+      const email = res_ponse.customerEmailid;
+      const orderno = res_ponse.ordernumber;
+      navigation.navigate('OrderSummary', {
+        details: {
+          custmerEmail: email, 
+          orderNo: orderno
+        },
+      });
+      setViewBasket([]);
+      setCartItems([]);
     } catch (error) {
       if (error.response) {
         console.log('Server responded with:', error.response.status);
         console.log('Response data:', error.response.data);
+      } else {
+        console.log('Network error or request failed:', error.message);
       }
     } finally {
       setLoader(false);
@@ -374,30 +473,39 @@ const CartScreen = ({navigation}) => {
     // Check each field and set an error message if it's empty
     if (userDetails.email === '') {
       newErrorMsg.email = 'Email is required';
+      scrollToInput(emailInputRef);
     }
     if (userDetails.name === '') {
       newErrorMsg.name = 'Name is required';
+      scrollToInput(nameInputRef);
     }
     if (userDetails.Address1 === '') {
       newErrorMsg.Address1 = 'Address 1 is required';
+      scrollToInput(address1InputRef);
     }
     if (userDetails.postal === '') {
       newErrorMsg.postal = 'Postal is required';
+      scrollToInput(postalInputRef);
     }
     if (userDetails.country === '') {
       newErrorMsg.country = 'Country is required';
+      scrollToInput(countryInputRef);
     }
     if (userDetails.PhoneNumber === '') {
       newErrorMsg.PhoneNumber = 'Phone Number is required';
+      scrollToInput(phoneNumberInputRef);
     }
     if (!selectedPayment) {
       newErrorMsg.payment = 'Select the payment';
+      scrollToInput(paymentRef, true);
     }
     if (!selectedOption2) {
       newErrorMsg.termsAndCondition = 'Check the terms and condition checkbox';
+      scrollToInput(termsAndConditionRef, true);
     }
     if (!selectedCountry) {
       newErrorMsg.county = 'Select the country';
+      scrollToInput(countyRef, true); // Pass the reference and set hasError to true
     }
 
     // Check if there are any error messages
@@ -450,8 +558,6 @@ const CartScreen = ({navigation}) => {
     ///so in product detail api we are getting category id .. so getting name based on category id
     if (category) {
       let data = contextCategories.filter(item => item.category == category);
-      //   setSelectedCatagories({name});
-      ///the data will come arrays
       return data[0].name;
     }
   };
@@ -466,9 +572,7 @@ const CartScreen = ({navigation}) => {
           <Logo width={180} height={25} />
         </View>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('CartScreen')}
-            style={styles.pressableImage}>
+          <TouchableOpacity style={styles.pressableImage}>
             <Shoppingcart width={22} height={22} />
             {cartItems.length > 0 && (
               <View style={styles.cartItemCount}>
@@ -497,7 +601,15 @@ const CartScreen = ({navigation}) => {
           isGradient={true}
           // setPage={setPage}
           options={contextCategories}
-          handleClick={item => {
+          handleClick={async item => {
+            setLoader(true);
+            const id = item?.category;
+            setCategory(id);
+
+            if (id) {
+              await getSubCatagories(id);
+              setLoader(false);
+            }
             navigation.navigate('CatalougePage', {
               books: {category: item.category, name: getName(item.category)},
             });
@@ -509,6 +621,7 @@ const CartScreen = ({navigation}) => {
         />
       </View>
       <ScrollView
+        ref={scrollViewRef}
         nestedScrollEnabled={true}
         scrollEnabled={true}
         contentContainerStyle={{flexGrow: 1}}
@@ -532,6 +645,7 @@ const CartScreen = ({navigation}) => {
               <View style={{alignItems: 'center'}}>
                 <TextInput
                   style={styles.emailInput}
+                  value={userDetails.email}
                   onChangeText={e => {
                     setUserDetails({
                       ...userDetails,
@@ -552,8 +666,11 @@ const CartScreen = ({navigation}) => {
                         ...showError,
                         email: true,
                       });
+                    } else {
+                      checkEmailRegistration();
                     }
                   }}
+                  ref={emailInputRef}
                 />
               </View>
               {showError.email && (
@@ -585,12 +702,8 @@ const CartScreen = ({navigation}) => {
                       });
                     }
                   }}
-                  // onPressIn={() => {
-                  //   setShowError({
-                  //     ...showError,
-                  //     name: false,
-                  //   });
-                  // }}
+                  ref={nameInputRef}
+                  value={userDetails.name}
                 />
               </View>
               {showError.name && (
@@ -610,12 +723,8 @@ const CartScreen = ({navigation}) => {
                       Address1: false,
                     });
                   }}
-                  // onPressIn={() => {
-                  //   setShowError({
-                  //     ...showError,
-                  //     Address1: false,
-                  //   });
-                  // }}
+                  value={userDetails.Address1}
+                  ref={address1InputRef}
                 />
               </View>
               {showError.Address1 && (
@@ -625,7 +734,6 @@ const CartScreen = ({navigation}) => {
               <View style={{alignItems: 'center'}}>
                 <TextInput style={styles.address2Input} />
               </View>
-
               <Text style={styles.phonenumText}>Phone number</Text>
               <View style={{alignItems: 'center'}}>
                 <TextInput
@@ -654,12 +762,8 @@ const CartScreen = ({navigation}) => {
                       });
                     }
                   }}
-                  // onPressIn={() => {
-                  //   setShowError({
-                  //     ...showError,
-                  //     PhoneNumber: false,
-                  //   });
-                  // }}
+                  value={userDetails.PhoneNumber}
+                  ref={phoneNumberInputRef}
                 />
               </View>
               {showError.PhoneNumber && (
@@ -691,12 +795,8 @@ const CartScreen = ({navigation}) => {
                       });
                     }
                   }}
-                  // onPressIn={() => {
-                  //   setShowError({
-                  //     ...showError,
-                  //     country: false,
-                  //   });
-                  // }}
+                  value={userDetails.country}
+                  ref={countryInputRef}
                 />
               </View>
               {showError.country && (
@@ -730,12 +830,8 @@ const CartScreen = ({navigation}) => {
                       });
                     }
                   }}
-                  // onPressIn={() => {
-                  //   setShowError({
-                  //     ...showError,
-                  //     postal: false,
-                  //   });
-                  // }}
+                  value={userDetails.postal}
+                  ref={postalInputRef}
                 />
               </View>
               {showError.postal && (
@@ -751,7 +847,7 @@ const CartScreen = ({navigation}) => {
                   position: 'relative',
                 }}>
                 <Dropdowns
-                  initialText={'Choose Country'}
+                  initialText={userDetails.county || 'Choose Country'}
                   style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
@@ -764,12 +860,12 @@ const CartScreen = ({navigation}) => {
                   customOptionStyles={{
                     width: Dimensions.get('window').width - 60,
                     top: 4,
-                    // position: 'absolute',
                     backgroundColor: '#FFF8F2',
                     borderWidth: 1,
                     borderColor: '#873900',
                     maxHeight: 120,
                   }}
+                  ref={countyRef}
                   isGradient={false}
                   options={countryNames}
                   handleClick={selected => {
@@ -827,6 +923,7 @@ const CartScreen = ({navigation}) => {
                     borderColor: '#873900',
                     height: 150,
                   }}
+                  ref={paymentRef}
                   isGradient={false}
                   options={items}
                   handleClick={item => {
@@ -849,11 +946,11 @@ const CartScreen = ({navigation}) => {
               <View
                 style={{
                   alignItems: 'center',
-                  // marginTop: isClicked ? -160 : 0,
                 }}>
                 <Text style={styles.notesText}>Notes</Text>
                 <TextInput
                   placeholderTextColor={'#873900'}
+                  multiline={true}
                   style={styles.notesInput}
                 />
               </View>
@@ -880,6 +977,7 @@ const CartScreen = ({navigation}) => {
                 {/* checkbox 2*/}
                 <TouchableOpacity
                   activeOpacity={1}
+                  ref={termsAndConditionRef}
                   onPress={() => {
                     setSelectedOption2(!selectedOption2);
                     setShowError({
@@ -899,26 +997,27 @@ const CartScreen = ({navigation}) => {
                   </Text>
                 </TouchableOpacity>
                 {showError.termsAndCondition && (
-                  <Text style={styles.errorText}>
+                  <Text style={styles.errorTexts}>
                     {errorMsg.termsAndCondition}
                   </Text>
                 )}
               </View>
               {/* continue button */}
               <TouchableOpacity
-                onPress={handleButtonClick}
+                onPress={() => {
+                  handleButtonClick();
+                }}
                 style={styles.continueButton}>
                 <Text style={styles.continueText}>Continue</Text>
               </TouchableOpacity>
             </View>
-            {/* )} */}
             <View>
               <Text style={styles.headerText}>Collectable items</Text>
               <FlatList
-                  scrollEnabled={false}
-                  data={viewCollectible}
-                  renderItem={renderCollectibleItem}
-                />
+                scrollEnabled={false}
+                data={viewCollectible}
+                renderItem={renderCollectibleItem}
+              />
             </View>
           </>
         ) : (
@@ -929,6 +1028,31 @@ const CartScreen = ({navigation}) => {
             </Text>
           </View>
         )}
+        <Modal visible={showModal} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowModal(false);
+            }}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Image
+                  source={require('../assets/images/rename.png')}
+                  style={styles.noNetwrk}
+                />
+                <Text style={styles.modalText}>
+                  {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setShowModal(false);
+                  }}>
+                  <Text style={styles.modalButtonText}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
         <Footer />
       </ScrollView>
       {loader && <Loader />}
@@ -998,15 +1122,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   emailInput: {
-    // width: '95%',
     color: 'black',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
-    // marginBottom: 10,
     height: 45,
     alignItems: 'center',
     paddingHorizontal: 10,
+    marginHorizontal: 11,
   },
   emailText: {
     color: '#454545',
@@ -1014,8 +1137,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    // marginVertical: 16,
-    paddingHorizontal: 11,
+    marginHorizontal: 11,
+    alignSelf: 'flex-start',
   },
   NameText: {
     color: '#454545',
@@ -1023,16 +1146,15 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    marginHorizontal: 11,
+    alignSelf: 'flex-start',
   },
   name: {
-    // width: '90%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
     color: '#454545',
   },
@@ -1042,17 +1164,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   Address1Input: {
-    // width: '90%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   address_2Text: {
@@ -1061,17 +1183,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    marginHorizontal: 11,
+    alignSelf: 'flex-start',
   },
   address2Input: {
-    // width: '90%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   phonenumText: {
@@ -1080,17 +1202,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   phoneNumber: {
-    // width: '95%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   countrystateText: {
@@ -1099,17 +1221,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   countryInput: {
-    // width: '90%',\
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   postalText: {
@@ -1118,17 +1240,17 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   postalInput: {
-    // width: '90%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 45,
     alignItems: 'center',
-    // marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   countryText: {
@@ -1137,7 +1259,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
+    marginHorizontal: 11,
+    alignSelf: 'flex-start',
   },
   paymentText: {
     color: '#454545',
@@ -1145,8 +1268,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
     alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   notesText: {
     color: '#454545',
@@ -1154,19 +1277,19 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 15,
     marginVertical: 8,
-    paddingHorizontal: 11,
     alignSelf: 'flex-start',
+    marginHorizontal: 11,
   },
   notesInput: {
-    // width: '90%',
     width: Dimensions.get('window').width - 60,
     borderColor: '#873900',
     borderWidth: 1,
     height: 120,
+    textAlign: 'justify',
     textAlignVertical: 'top',
-    // alignItems: 'flex-start',
     marginBottom: 10,
     paddingHorizontal: 10,
+    marginHorizontal: 11,
     color: '#454545',
   },
   checkbox: {
@@ -1222,13 +1345,17 @@ const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
+    marginHorizontal: 11,
   },
   errortext: {
     color: 'red',
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
+    marginHorizontal: 11,
     marginVertical: 10,
+  },
+  errorTexts: {
+    color: 'red',
+    alignSelf: 'flex-start',
   },
   cartItemCount: {
     position: 'absolute',
@@ -1309,8 +1436,6 @@ const styles = StyleSheet.create({
   titleAndDes: {
     flex: 1,
     width: '100%',
-    // paddingHorizontal: 7,
-    // paddingVertical: 12,
   },
   titleText: {
     color: '#454545',
@@ -1346,9 +1471,7 @@ const styles = StyleSheet.create({
   },
   firstDropdownOptionCollect: {
     width: 240,
-    // maxHeight: 150,
     top: 4,
-    // position: 'absolute',
     borderWidth: 1,
     borderColor: '#873900',
     borderRadius: 3,
@@ -1365,5 +1488,46 @@ const styles = StyleSheet.create({
     fontFamily: 'OpenSans-Regular',
     fontWeight: '700',
     marginVertical: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#818589cc',
+  },
+  modalContent: {
+    backgroundColor: '#FFF8F2',
+    borderRadius: 8,
+    height: 200,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalText: {
+    color: '#454545',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF8F2',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#873900',
+    borderRadius: 3,
+    width: 100,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
+  },
+  noNetwrk: {
+    width: 50,
+    height: 50,
   },
 });

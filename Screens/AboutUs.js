@@ -7,6 +7,8 @@ import {
   Image,
   ScrollView,
   FlatList,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import React, {useContext, useState, useEffect} from 'react';
 import Logo from '../assets/images/logo1.svg';
@@ -21,10 +23,12 @@ const AboutUs = ({navigation}) => {
   const {setContextCategories, cartItems, contextCategories, getSubCatagories} =
     useContext(CategoriesContext);
   const [loader, setLoader] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     getCatagories();
   }, []);
+
   const getCatagories = async () => {
     setLoader(true);
     try {
@@ -32,8 +36,9 @@ const AboutUs = ({navigation}) => {
       setContextCategories(response?.data?.data);
       setLoader(false);
     } catch (error) {
-      console.error('response first error', error);
+      console.log('response first error', error);
       setLoader(false);
+      setShowModal(true);
     }
   };
 
@@ -43,7 +48,7 @@ const AboutUs = ({navigation}) => {
     try {
       const id = item?.category;
       if (id) {
-        await getSubCatagories(item?.category);
+        await getSubCatagories(id);
       }
       // Assuming navigation.navigate is asynchronous or doesn't return a promise
       navigation.navigate('CatalougePage', {books: item});
@@ -164,6 +169,27 @@ const AboutUs = ({navigation}) => {
           numColumns={2}
           style={{marginHorizontal: 10}}
         />
+        <Modal visible={showModal} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowModal(false);
+            }}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalText}>
+                  {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setShowModal(false);
+                  }}>
+                  <Text style={styles.modalButtonText}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
         <Footer />
       </ScrollView>
       {loader && <Loader />}
@@ -298,5 +324,42 @@ const styles = StyleSheet.create({
     // fontSize: 12,
     textAlignVertical: 'center',
     textAlign: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#818589cc',
+  },
+  modalContent: {
+    backgroundColor: '#FFF8F2',
+    borderRadius: 8,
+    height: 200,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalText: {
+    color: '#454545',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF8F2',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#873900',
+    borderRadius: 3,
+    width: 100,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
   },
 });

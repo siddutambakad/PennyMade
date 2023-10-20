@@ -11,7 +11,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Up from '../../assets/images/up.svg';
 import VectorUp from '../../assets/images/vectorup.svg';
 
-const Dropdowns = props => {
+const Dropdowns = React.forwardRef((props, ref) => {
   const {
     options,
     handleClick,
@@ -29,9 +29,8 @@ const Dropdowns = props => {
     handleClick(item);
     setIsClicked(false);
   };
-
   return (
-    <View>
+    <View ref={ref}>
       {isGradient ? (
         <LinearGradient colors={['#B14B00', '#873900']} style={style}>
           <TouchableOpacity
@@ -104,7 +103,9 @@ const Dropdowns = props => {
               style={[
                 styles.inputField,
                 selectedItem?.name === item.name && styles.selectedDropdown,
-                initialText === item.name && !selectedItem?.name && styles.matchingDropdown,
+                initialText === item.name &&
+                  !selectedItem?.name &&
+                  styles.matchingDropdown,
               ]}>
               <Text
                 key={index}
@@ -114,7 +115,9 @@ const Dropdowns = props => {
                   styles.dropdownOptionText,
                   // {color: selectedItem?.name === item.name ? '#fff' : '#000'},
                   selectedItem?.name === item.name && styles.selectedText,
-                  initialText === item.name && !selectedItem?.name && styles.matchingText,
+                  initialText === item.name &&
+                    !selectedItem?.name &&
+                    styles.matchingText,
                 ]}>
                 {item.name}
               </Text>
@@ -124,7 +127,7 @@ const Dropdowns = props => {
       )}
     </View>
   );
-};
+});
 
 export default Dropdowns;
 

@@ -9,9 +9,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import React, {useState, useEffect, useContext} from 'react';
+import React, {useState, useEffect, useContext, useRef} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
@@ -21,15 +22,14 @@ import Loader from './componet/Loader/Loader';
 import {CategoriesContext} from './componet/AppContext';
 import Filter from '../assets/images/filter.svg';
 import Dropdowns from './componet/Dropdowns';
-import {
-  responsiveHeight,
-  responsiveWidth,
-} from 'react-native-responsive-dimensions';
+import {responsiveWidth} from 'react-native-responsive-dimensions';
 import Card from './componet/Card';
 import Footer from './componet/Footer';
-import {LogBox} from 'react-native';
+// import {LogBox} from 'react-native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import base64 from 'react-native-base64';
 
-const HomePage = ({navigation}) => {
+const HomePage = () => {
   const {
     contextCategories,
     getSubCatagories,
@@ -37,7 +37,7 @@ const HomePage = ({navigation}) => {
     cartItems,
     addToCart,
   } = useContext(CategoriesContext);
-  LogBox.ignoreAllLogs();
+  // LogBox.ignoreAllLogs();
   const [selectedFilter, setSelectedFilter] = useState({
     name: 'Newest Items',
     type: 'newlyUpdated',
@@ -55,7 +55,10 @@ const HomePage = ({navigation}) => {
   const [collectableData, setCollectableData] = useState([]);
   const [loader, setLoader] = useState(true);
   const [isClicked, setIsClicked] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState(1);
+  const scrollViewRef = useRef();
+  const navigation = useNavigation();
+  const [showModal, setShowModal] = useState(false);
 
   /// useeffect for calling the api when app renders for categories
   useEffect(() => {
@@ -65,7 +68,23 @@ const HomePage = ({navigation}) => {
   ///useeffect for the second api
   useEffect(() => {
     getCollectibleItems(selectedFilter.type, page);
-  }, [selectedFilter, page]);
+  }, [selectedFilter.type, page]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
+    }, []),
+  );
+
+  // const base64Data = {
+  //   orderno: '111233',
+  //   email: "test@gmail.com",
+  // };
+  // const encodedCredential = base64.encode(JSON.stringify(base64Data));
+  // console.log("🚀 ~ file: HomePage.js:84 ~ HomePage ~ encodedCredential:", encodedCredential)
+  // const decodeData = base64.decode(encodedCredential)
+  // console.log("🚀 ~ file: OrderSummary.js:116 ~ OrderSummary ~ decodeData:", (JSON.parse(decodeData)).email)
+  
 
   ///fecth the first api of catagories
   const getCatagories = async () => {
@@ -76,22 +95,27 @@ const HomePage = ({navigation}) => {
       setContextCategories(response?.data?.data);
       setLoader(false);
     } catch (error) {
-      console.error('response first error', error);
+      console.log('response first error', error);
+      setShowModal(true);
       setLoader(false);
     }
   };
   ///fetch the second api of collectible items
   const getCollectibleItems = async (filtertype, page) => {
     setLoader(true);
-    try {
-      const apiUrls = `${APIS.getCollectableItems}${filtertype}/${page}/`;
-      const response = await axios.get(apiUrls);
-      setCollectableData(response.data?.data);
-    } catch (error) {
-      console.error('getCollectibleItems error:', error);
-    } finally {
-      setLoader(false);
-    }
+    const apiUrls = `${APIS.getCollectableItems}${filtertype}/${page}/`;
+    axios
+      .get(apiUrls)
+      .then(response => {
+        setCollectableData(response.data?.data);
+      })
+      .catch(error => {
+        console.log('getCollectibleItems error:', error);
+        setShowModal(true);
+      })
+      .finally(() => {
+        setLoader(false);
+      });
   };
 
   // when user click any one category
@@ -101,9 +125,8 @@ const HomePage = ({navigation}) => {
     try {
       const id = item?.category;
       if (id) {
-        await getSubCatagories(item?.category);
+        await getSubCatagories(id);
       }
-      // Assuming navigation.navigate is asynchronous or doesn't return a promise
       navigation.navigate('CatalougePage', {books: item});
     } catch (error) {
       console.error('An error occurred:', error);
@@ -112,55 +135,73 @@ const HomePage = ({navigation}) => {
     }
   };
   /// first category items
-  const renderCategories = ({item}) => (
-    // <View style={{alignItems: 'center', alignSelf: 'center',}}>
-    <TouchableOpacity
-      style={styles.cardContent}
-      activeOpacity={0.5}
-      onPress={() => getSubCategoryData(item)}>
-      {item.image && item.image.length > 0 ? (
-        <Image source={{uri: item.image[0]}} style={styles.cardImage} />
-      ) : (
-        <View
-          style={{
-            marginTop: 10,
-          }}>
-          <Image
-            source={require('../assets/images/placeholderimage.png')}
-            style={{width: 107, height: 120}}
-          />
-        </View>
-      )}
-      <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
-        {item.title}
-      </Text>
-      <Text style={styles.cardText}>{item.name}</Text>
-    </TouchableOpacity>
-    // </View>
-  );
+  const renderCategories = ({item}) => {
+    return (
+      // <View style={{alignItems: 'center', flex: 0.5}}>
+      <TouchableOpacity
+        style={styles.cardContent}
+        activeOpacity={0.5}
+        onPress={() => getSubCategoryData(item)}>
+        {item.image && item.image.length > 0 ? (
+          <Image source={{uri: item.image[0]}} style={styles.cardImage} />
+        ) : (
+          <View
+            style={{
+              marginTop: 10,
+            }}>
+            <Image
+              source={require('../assets/images/placeholderimage.png')}
+              style={{width: 107, height: 120}}
+            />
+          </View>
+        )}
+        <Text style={styles.cardTitle} ellipsizeMode="tail" numberOfLines={3}>
+          {item.title}
+        </Text>
+        <Text style={styles.cardText}>{item.name}</Text>
+      </TouchableOpacity>
+      // </View>
+    );
+  };
 
   const handleCart = item => {
     addToCart(item);
   };
 
+  const handleScrollUP = () => {
+    scrollViewRef.current.scrollTo({x: 1300, y: 1300, animated: false});
+  };
+
   /// second category items
-  const renderSecondCategory = ({item, index}) => (
-    <Card
-      imgSource={item.image && item.image.length > 0 && item.image[0]}
-      author={item.author}
-      price={item.price}
-      title={item.title}
-      description={item.description}
-      // isLoading={loading}
-      handlePress={() => {
-        handleCart(item.sysid);
-      }}
-      handlePressCard={() => {
-        navigation.navigate('ProductDetail', {sysid: item.sysid});
-      }}
-      cardIndex={index} // Pass the index of the card
-    />
-  );
+  const renderSecondCategory = ({item, index}) => {
+    return (
+      <Card
+        imgSource={item.image && item.image.length > 0 && item.image[0]}
+        author={item.author}
+        price={item.price}
+        title={item.title}
+        description={item.description}
+        // isLoading={loading}
+        handlePress={() => {
+          setTimeout(() => {
+            handleCart(item.sysid);
+          }, 800);
+        }}
+        handlePressCard={async () => {
+          setLoader(true);
+          const id = item?.category;
+          setCategory(id);
+
+          if (id) {
+            await getSubCatagories(id);
+            setLoader(false);
+          }
+          navigation.navigate('ProductDetail', {sysid: item.sysid});
+        }}
+        cardIndex={index} // Pass the index of the card
+      />
+    );
+  };
   // page background color
   const getBackground = item => {
     if (item?.value === page) {
@@ -247,6 +288,7 @@ const HomePage = ({navigation}) => {
                 if (page > 1) {
                   setPage(page - 1);
                 }
+                handleScrollUP();
               }}
               disabled={page <= 1 ? true : false}
               style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
@@ -264,6 +306,7 @@ const HomePage = ({navigation}) => {
             ]}
             onPress={() => {
               setPage(item.value);
+              handleScrollUP();
             }}>
             <Text
               style={{
@@ -281,6 +324,7 @@ const HomePage = ({navigation}) => {
               if (page < collectableData.totalpages) {
                 setPage(page + 1);
               }
+              handleScrollUP();
             }}
             disabled={page === collectableData.totalpages}
             style={[
@@ -327,6 +371,7 @@ const HomePage = ({navigation}) => {
     } else {
       setError('Page number should be in allowed range');
     }
+    handleScrollUP();
   };
 
   return (
@@ -360,12 +405,14 @@ const HomePage = ({navigation}) => {
             </Pressable>
             <Pressable
               style={{paddingLeft: 10}}
-              onPress={() => navigation.openDrawer()}>
+              onPress={() => {
+                navigation.openDrawer();
+              }}>
               <Menu width={43} height={43} />
             </Pressable>
           </View>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
           <Text style={styles.headerText}>Collectables</Text>
 
           <FlatList /// display the first categories items
@@ -392,7 +439,7 @@ const HomePage = ({navigation}) => {
               </View>
               <Dropdowns
                 initialText={selectedFilter?.name}
-                options={items.filter(val => val)}
+                options={items}
                 style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -421,9 +468,11 @@ const HomePage = ({navigation}) => {
                   setPage(1);
                 }}
                 isGradient={false}
-                // setPage={setPage}
+                setPage={setPage}
                 isClicked={isClicked}
-                setIsClicked={setIsClicked}
+                setIsClicked={() => {
+                  setIsClicked(!isClicked);
+                }}
               />
             </View>
           )}
@@ -441,6 +490,28 @@ const HomePage = ({navigation}) => {
               {renderSearch()}
             </View>
           )}
+
+          <Modal visible={showModal} animationType="fade" transparent={true}>
+            <TouchableWithoutFeedback
+              onPress={() => {
+                setShowModal(false);
+              }}>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalText}>
+                    {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => {
+                      setShowModal(false);
+                    }}>
+                    <Text style={styles.modalButtonText}>Ok</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
           {/* footer content */}
           <Footer />
         </ScrollView>
@@ -455,7 +526,6 @@ export default HomePage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // paddingHorizontal: 16,
   },
   imageBacground: {
     flex: 1,
@@ -490,15 +560,13 @@ const styles = StyleSheet.create({
     // resizeMode: 'cover',
   },
   cardContent: {
-    marginHorizontal: 9,
-    marginVertical: 5,
+    margin: 10,
     // flex: 0.5,
     width: '45%',
     minHeight: 280,
     backgroundColor: '#FFF8F2',
     elevation: 10,
     alignItems: 'center',
-    marginBottom: 18,
     borderRadius: 5,
     padding: 12,
   },
@@ -731,5 +799,42 @@ const styles = StyleSheet.create({
     flex: 1,
     // position: 'relative',
     paddingHorizontal: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#818589cc',
+  },
+  modalContent: {
+    backgroundColor: '#FFF8F2',
+    borderRadius: 8,
+    height: 200,
+    width: '80%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalText: {
+    color: '#454545',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonText: {
+    color: '#FFF8F2',
+    fontFamily: 'OpenSans-Regular',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#873900',
+    borderRadius: 3,
+    width: 100,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
   },
 });

@@ -9,8 +9,10 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import React, {useState, useEffect, useContext} from 'react';
+import React, {useState, useEffect, useContext, useRef} from 'react';
 import Logo from '../assets/images/logo1.svg';
 import Shoppingcart from '../assets/images/shopping-cart.svg';
 import Menu from '../assets/images/menu.svg';
@@ -25,11 +27,11 @@ import {LogBox} from 'react-native';
 import Card from './componet/Card';
 import Footer from './componet/Footer';
 import Loader from './componet/Loader/Loader';
+import {useFocusEffect} from '@react-navigation/native';
 
 const ProductDetail = ({navigation, route}) => {
   const {sysid} = route.params;
   LogBox.ignoreAllLogs();
-  const [particularItems, setParticularItems] = useState([]);
   const {
     contextCategories,
     getSubCatagories,
@@ -37,21 +39,14 @@ const ProductDetail = ({navigation, route}) => {
     cartItems,
     addToCart,
   } = useContext(CategoriesContext);
-  const [page, setPage] = useState(1);
   const [reference, setReference] = useState('');
   const [category, setCategory] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState('');
-  //   const [selectedCatagories, setSelectedCatagories] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState({
-    name: 'Newest Items',
-    type: 'newlyUpdated',
-  });
   const [selectedValue, setSelectedValue] = useState('');
   const [selectedOption1, setSelectedOption1] = useState('Whole Catalogue');
   const [selectedOption2, setSelectedOption2] = useState(false);
   const [selectedOption3, setSelectedOption3] = useState(false);
   const [isSearched, setIsSearched] = useState(false);
-  const [isReference, setIsReference] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [loader, setLoader] = useState(false);
@@ -60,42 +55,9 @@ const ProductDetail = ({navigation, route}) => {
   const [relatableItems, setRelatableItems] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-
-  const handleSearch = async () => {
-    setIsSearched(true);
-    setLoader(true);
-    setIsReference(false);
-    try {
-      ///body for the post api
-
-      const searchingData = {
-        term: searchKeyword,
-        adesc: selectedOption3 ? 1 : 0,
-        category_number: selectedOption2 ? 1 : 0,
-        sortby: selectedFilter.type,
-        page: page,
-      };
-      // return
-      const response = await axios.post(APIS.getSearchItems, searchingData);
-
-      // Check if "searchresults" key exists in the response
-      if (response?.data?.searchresults) {
-        const searchData = response?.data; // Extract search results
-        let _searchData = {...searchData, data: searchData.searchresults};
-        setParticularItems(_searchData);
-      }
-    } catch (error) {
-      console.log('responsce search error in productdetail', error.response);
-      Toast.show({
-        type: 'tomatoToast',
-        text1: 'No Data Found',
-        visibilityTime: 2500,
-        position: 'bottom',
-      });
-    } finally {
-      setLoader(false);
-    }
-  };
+  const [showModal, setShowModal] = useState(false);
+  // const [selectBook, setSelectBook] = useState('');
+  const scrollViewRef = useRef();
 
   const nextImage = () => {
     setCurrentImageIndex(currentImageIndex + 1);
@@ -107,46 +69,32 @@ const ProductDetail = ({navigation, route}) => {
     }
   };
 
-  useEffect(() => {
-    // Check if 'isSearched' is true. If true, execute the 'handleSearch' function.
-    if (isSearched) {
-      /////it will print the searched products when it is true
-      handleSearch();
-    } else if (isReference) {
-      getSearchBySubCat(category, reference, page);
-    }
-  }, [page, category, reference]);
+  useFocusEffect(
+    React.useCallback(() => {
+      scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
+    }, []),
+  );
 
   useEffect(() => {
     getProductDetail(sysid);
   }, [sysid]);
 
-  const getSearchBySubCat = async (category, reference, filtertype, page) => {
-    setLoader(true);
-    const url = `${APIS.getSearchByCat}/${category}/${reference}/${filtertype}/${page}/`;
-
-    try {
-      const response = await axios.get(url);
-      setParticularItems(response?.data?.data);
-    } catch (error) {
-      console.log('Responce search sub cat Error', error);
-    } finally {
-      setLoader(false);
-    }
-  };
-
-  const getProductDetail = async sysid => {
+  const getProductDetail = sysid => {
     setLoader(true);
     const res = `${APIS.getProductDetail}/${sysid}/`;
-    try {
-      const response = await axios.get(res);
-      setProduct_Detail(response?.data.productdetail);
-      setRelatableItems(response?.data.relateditems);
-    } catch (error) {
-      console.log('error======1', error);
-    } finally {
-      setLoader(false);
-    }
+    axios
+      .get(res)
+      .then(response => {
+        setProduct_Detail(response?.data.productdetail);
+        setRelatableItems(response?.data.relateditems);
+      })
+      .catch(error => {
+        console.log('error======1', error);
+        setShowModal(true);
+      })
+      .finally(() => {
+        setLoader(false);
+      });
   };
 
   const toggleDropdown = index => {
@@ -208,37 +156,29 @@ const ProductDetail = ({navigation, route}) => {
         isLoading={isLoading}
         description={item.description}
         handlePress={() => {
-          handleCart(item.sysid);
+          setTimeout(() => {
+            handleCart(item.sysid);
+          }, 1000);
         }}
         handlePressCard={() => {
           getProductDetail(item.sysid);
         }}
-        cardIndex={index} 
+        cardIndex={index}
       />
     );
   };
 
   /////when  we want to show the category id based on product detail
-  // const getName = (category) => {
-  //   ///so in product detail api we are getting category id .. so getting name based on category id
-  //   if (category) {
-  //     let data = contextCategories.filter(item => item.category == category);
-  //     //   setSelectedCatagories({name});
-  //     ///the data will come arrays
-  //     return data[0].name;
-  //   }
-  // };
-
   const getName = category => {
-    if (category && contextCategories) {
-      const data = contextCategories.filter(item => item.category === category);
-      if (data.length > 0) {
-        return data[0].name;
-      }
+    ///so in product detail api we are getting category id .. so getting name based on category id
+    if (category) {
+      let data = contextCategories.filter(item => item.category == category);
+      //   setSelectedCatagories({name});
+      ///the data will come arrays
+      return data[0].name;
     }
-    // Handle the case when category or contextCategories is undefined or no matching data is found.
-    return 'Category Name Not Found';
   };
+
   return (
     <ImageBackground
       source={require('../assets/images/bacgroundImage.jpg')}
@@ -272,7 +212,7 @@ const ProductDetail = ({navigation, route}) => {
           </TouchableOpacity>
         </View>
       </View>
-      <ScrollView style={{flexGrow: 1}}>
+      <ScrollView ref={scrollViewRef} style={{flexGrow: 1}}>
         {/* first dropdown */}
         {product_Detail && (
           <View style={{marginHorizontal: 15, zIndex: 8}}>
@@ -285,11 +225,9 @@ const ProductDetail = ({navigation, route}) => {
               isGradient={true}
               options={contextCategories}
               handleClick={async item => {
-                setIsReference(false);
-                setIsSearched(false);
                 const id = item?.category;
                 setCategory(id);
-
+                // setSelectBook(item?.name);
                 if (id) {
                   await getSubCatagories(id);
                 }
@@ -300,7 +238,7 @@ const ProductDetail = ({navigation, route}) => {
                   },
                 });
               }}
-              setPage={setPage}
+              // setPage={setPage}
               isClicked={isOpen}
               setIsClicked={() => {
                 setIsOpen(!isOpen);
@@ -332,7 +270,6 @@ const ProductDetail = ({navigation, route}) => {
                     customOptionStyles={styles.secondDropdownOptions}
                     handleClick={selectItem => {
                       setIsSearched(false);
-                      setIsReference(true);
                       setReference(selectItem.reference);
                       setSelectedValue(selectItem.name);
                       navigation.navigate('CatalougePage', {
@@ -340,12 +277,13 @@ const ProductDetail = ({navigation, route}) => {
                           reference: selectItem.reference,
                           name: selectItem.name,
                           category: product_Detail.category,
+                          itemName: {name: getName(product_Detail.category)},
                         },
                       });
                     }}
                     isClicked={item === openDropdown}
                     setIsClicked={() => toggleDropdown(item)}
-                    setPage={setPage}
+                    // setPage={setPage}
                     key={item.name}
                   />
                 </View>
@@ -368,15 +306,17 @@ const ProductDetail = ({navigation, route}) => {
           <TouchableOpacity
             style={styles.searchbutton}
             onPress={() => {
-              handleSearch();
+              // handleSearch();
               navigation.navigate('CatalougePage', {
                 searchingData: {
                   term: searchKeyword,
                   adesc: selectedOption3 ? 1 : 0,
-                  category_number: selectedOption2 ? product_Detail?.category : 0,
-                  sortby: selectedFilter.type,
-                  page: page,
-                  categoryname:getName(product_Detail?.category)
+                  category_number: selectedOption2
+                    ? product_Detail?.category
+                    : 0,
+                  // sortby: "newly Updated",
+                  // page: 1,
+                  categoryname: getName(product_Detail?.category),
                 },
               });
             }}
@@ -414,9 +354,7 @@ const ProductDetail = ({navigation, route}) => {
               setSelectedOption1(false);
             }}>
             <View style={styles.circle}>
-              {selectedOption2 && (
-                <View style={styles.dotCircle}></View>
-              )}
+              {selectedOption2 && <View style={styles.dotCircle}></View>}
             </View>
             <Text style={styles.radioText2}>This Category</Text>
           </TouchableOpacity>
@@ -526,11 +464,21 @@ const ProductDetail = ({navigation, route}) => {
                 {/* add to cart button */}
                 <TouchableOpacity
                   onPress={() => {
-                    setIsLoading(true);
-                    addToCart(product_Detail.sysid);
+                    setIsLoading(true); // Set loading state to true for this card
                     setTimeout(() => {
-                      setIsLoading(false);
-                    }, 2000);
+                      addToCart(product_Detail.sysid);
+                    }, 1000);
+                    setTimeout(() => {
+                      setIsLoading(false); // Set loading state to false after a delay
+                      Toast.show({
+                        type: 'customToast',
+                        text1: 'Item has been added to the cart',
+                        text2: 'click to View',
+                        visibilityTime: 800,
+                        autoHide: true,
+                        position: 'bottom',
+                      });
+                    }, 500);
                   }}
                   style={styles.Addtocartbutton}
                   activeOpacity={1}>
@@ -573,14 +521,39 @@ const ProductDetail = ({navigation, route}) => {
         />
         <TouchableOpacity
           onPress={() => {
+            setLoader(true);
             navigation.navigate('CatalougePage', {
-              books: product_Detail?.category,
+              books: {
+                category: product_Detail?.category,
+                name: getName(product_Detail.category),
+              },
             });
           }}
           style={styles.Addtocartbutton}
           activeOpacity={1}>
           <Text style={styles.addtocarttext}>View All</Text>
         </TouchableOpacity>
+        <Modal visible={showModal} animationType="fade" transparent={true}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setShowModal(false);
+            }}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalText}>
+                  {'Ooops\nSomething Went Wrong!!\nPlease try again...'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setShowModal(false);
+                  }}>
+                  <Text style={styles.modalButtonText}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
         <Footer />
       </ScrollView>
       {loader && <Loader />}

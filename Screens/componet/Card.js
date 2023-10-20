@@ -79,7 +79,7 @@ const Card = props => {
               autoHide: true,
               position: 'bottom',
             });
-          }, 1000);
+          }, 500);
         }}
         style={[styles.Addtocartbutton, isLoading && styles.disabledButton]}
         disabled={isLoading}
