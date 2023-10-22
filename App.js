@@ -46,13 +46,13 @@ function StackNavigator() {
   }, []);
   return (
     <Stack.Navigator>
-      {/* {showSplash && (
+      {showSplash && (
         <Stack.Screen
           name="SplashScreen"
           component={SplashScreen}
           options={{headerShown: false}}
         />
-      )} */}
+      )}
       <Stack.Screen
         name="HomePage"
         component={HomePage}

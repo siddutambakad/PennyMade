@@ -27,7 +27,6 @@ import Card from './componet/Card';
 import Footer from './componet/Footer';
 // import {LogBox} from 'react-native';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
-import base64 from 'react-native-base64';
 
 const HomePage = () => {
   const {
@@ -75,17 +74,6 @@ const HomePage = () => {
       scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
     }, []),
   );
-
-  // const base64Data = {
-  //   orderno: '111233',
-  //   email: "test@gmail.com",
-  // };
-  // const encodedCredential = base64.encode(JSON.stringify(base64Data));
-  // console.log("🚀 ~ file: HomePage.js:84 ~ HomePage ~ encodedCredential:", encodedCredential)
-  // const decodeData = base64.decode(encodedCredential)
-  // console.log("🚀 ~ file: OrderSummary.js:116 ~ OrderSummary ~ decodeData:", (JSON.parse(decodeData)).email)
-  
-
   ///fecth the first api of catagories
   const getCatagories = async () => {
     setLoader(true);
@@ -287,8 +275,8 @@ const HomePage = () => {
               onPress={() => {
                 if (page > 1) {
                   setPage(page - 1);
+                  handleScrollUP();
                 }
-                handleScrollUP();
               }}
               disabled={page <= 1 ? true : false}
               style={[styles.forwardButton, {opacity: page <= 1 ? 0 : 1}]}>
@@ -305,8 +293,8 @@ const HomePage = () => {
               {backgroundColor: getBackground(item)},
             ]}
             onPress={() => {
-              setPage(item.value);
               handleScrollUP();
+              setPage(item.value);
             }}>
             <Text
               style={{
@@ -323,8 +311,8 @@ const HomePage = () => {
             onPress={() => {
               if (page < collectableData.totalpages) {
                 setPage(page + 1);
+                handleScrollUP();
               }
-              handleScrollUP();
             }}
             disabled={page === collectableData.totalpages}
             style={[

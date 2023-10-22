@@ -39,7 +39,6 @@ const TrackOrder = ({navigation}) => {
   const [selectedOption1, setSelectedOption1] = useState(true);
   const [selectedOption2, setSelectedOption2] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [dataFound, setDataFound] = useState(true);
   const [emailSent, setEmailSent] = useState(false);
   const [filterOrders, setFilterOrders] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -60,12 +59,15 @@ const TrackOrder = ({navigation}) => {
 
   useFocusEffect(
     React.useCallback(() => {
+      if (otpVerified) {
+      trackByEmail()
+      }
       scrollViewRef.current.scrollTo({x: 0, y: 0, animated: false});
-    }, []),
+    }, [otpVerified]),
   );
 
   const getEmailStored = async () => {
-    let storedEmail = await AsyncStorage.getItem('custmerEmail');
+    let storedEmail = await AsyncStorage.getItem('emails');
     storedEmail = JSON.parse(storedEmail);
     // setEmail(storedEmail);
   };
@@ -129,10 +131,15 @@ const TrackOrder = ({navigation}) => {
         setLoader(false);
       });
   };
+  // useEffect(() => {
+  //   trackByEmail();
+  // }, [email]);
 
   const trackByEmail = () => {
     setLoader(true);
     const apiUrl = `http://54.226.77.97:81/view/getOrderdetailbyEmail/${email}/`;
+
+    // Send a GET request to the API URL using axios and handle the response and errors
     axios
       .get(apiUrl)
       .then(result => {
@@ -182,7 +189,6 @@ const TrackOrder = ({navigation}) => {
     if (searchKeyword === '') {
       let datas = selectedOption1 ? 'unPaid' : 'paid';
       filterOrdersAndTrack(datas, orderDetails);
-      setDataFound(true);
     } else {
       const filteredOrders = orderDetails.filter(order => {
         // Check if the order is paid (transtatus is not empty) and selected option is Paid
@@ -213,7 +219,7 @@ const TrackOrder = ({navigation}) => {
       setFilterOrders(filteredOrders);
 
       // Update the dataFound state based on whether data is found or not
-      setDataFound(filteredOrders.length > 0);
+      // setDataFound(filteredOrders.length > 0);
     }
   };
 
@@ -336,18 +342,16 @@ const TrackOrder = ({navigation}) => {
             </View>
           )}
           {showPayNowButton && (
-          <TouchableOpacity
-            style={styles.PaynowButton}
-            onPress={() => {
-              navigation.navigate('OrderSummary', {
-                details: {
-                  Email: email, // Make sure custmerEmail is defined here
-                  orderno: item.orderno, // Make sure orderno is defined here
-                },
-              });
-            }}>
-            <Text style={styles.paynowText}>Check Out</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.PaynowButton}
+              onPress={() => {
+                navigation.navigate('OrderSummary', {
+                  orderno: item.orderno,
+                  email: email,
+                });
+              }}>
+              <Text style={styles.paynowText}>Pay now</Text>
+            </TouchableOpacity>
           )}
           <View style={styles.line}></View>
           <View
@@ -377,7 +381,7 @@ const TrackOrder = ({navigation}) => {
                 return (
                   <>
                     <View
-                      key={index} // Make sure to provide a unique key
+                      key={summaryIndex} // Make sure to provide a unique key
                       style={{
                         flexDirection: 'row',
                         justifyContent: 'space-between',
@@ -697,8 +701,7 @@ const TrackOrder = ({navigation}) => {
               </View>
             </View>
             <View>
-              <View>{renderOrderDetails()}</View>
-              {!dataFound && (
+              {filterOrders.length === 0 ? (
                 <Text
                   style={{
                     color: 'black',
@@ -708,7 +711,20 @@ const TrackOrder = ({navigation}) => {
                   }}>
                   No data found
                 </Text>
+              ) : (
+                <View>{renderOrderDetails()}</View>
               )}
+              {/* {!dataFound && (
+                <Text
+                  style={{
+                    color: 'black',
+                    fontSize: 18,
+                    fontFamily: 'OpenSans-Regular',
+                    paddingHorizontal: 13,
+                  }}>
+                  No data found
+                </Text>
+              )} */}
             </View>
           </>
         )}

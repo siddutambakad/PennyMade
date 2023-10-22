@@ -101,6 +101,7 @@ const OrderSummary = ({route, navigation}) => {
   };
 
   const inserTransaction = async () => {
+    setLoader(true);
     try {
       const base64Data = {
         orderno: orderDetail.orderno,
@@ -120,6 +121,8 @@ const OrderSummary = ({route, navigation}) => {
       setDataEncode(encodedCredential);
     } catch (error) {
       console.log('error in inserted transaction', error);
+    } finally {
+      setLoader(false);
     }
   };
 
@@ -193,6 +196,7 @@ const OrderSummary = ({route, navigation}) => {
       // Set the merchant session key in the state
       setMerchantSessionKey(response.data.merchantSessionKey);
       inserTransaction();
+      setShowModal(true);
       console.log('Response payment:', response.data?.merchantSessionKey);
     } catch (error) {
       console.error('Error in merchant key:', error);
@@ -331,10 +335,10 @@ const OrderSummary = ({route, navigation}) => {
     }
   };
 
-  const handleOpenModal = () => {
-    getMerchantSessionKey();
-    setShowModal(true);
-  };
+  // const handleOpenModal = () => {
+  //   getMerchantSessionKey();
+  //   setShowModal(true);
+  // };
   const get_Order_Summary = async (orderNumber, customerEmail) => {
     setLoader(true);
     const apiUrl = `${APIS.getOrderSummary}/${orderNumber}/${customerEmail}/`;
@@ -642,7 +646,8 @@ const OrderSummary = ({route, navigation}) => {
             <TouchableOpacity
               style={styles.PaynowButton}
               onPress={() => {
-                handleOpenModal();
+                // handleOpenModal();
+                getMerchantSessionKey();
               }}>
               <Text style={styles.paynowText}>Pay now</Text>
             </TouchableOpacity>
@@ -827,7 +832,7 @@ const OrderSummary = ({route, navigation}) => {
           <TouchableWithoutFeedback
             onPress={() => {
               setOpenModal(false);
-              // navigation.navigate('HomePage');
+              navigation.navigate('HomePage');
             }}>
             <View style={styles.modalContainer}>
               <View style={styles.modalContent1}>
@@ -835,7 +840,7 @@ const OrderSummary = ({route, navigation}) => {
                   style={{alignSelf: 'flex-end'}}
                   onPress={() => {
                     setOpenModal(false);
-                    // navigation.navigate('HomePage');
+                    navigation.navigate('HomePage');
                   }}>
                   <Cancel width={40} height={40} />
                 </TouchableOpacity>
@@ -945,18 +950,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    alignItems: 'center',
   },
   authorText: {
     color: '#454545',
     fontFamily: 'RobotoSlab-Regular',
-    fontSize: 18,
+    fontSize: 16,
+    width: '80%',
     fontWeight: 'bold',
   },
   priceText: {
     color: '#454545',
     fontFamily: 'RobotoSlab-Regular',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   titleAndDes: {
