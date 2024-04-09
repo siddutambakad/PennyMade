@@ -32,7 +32,7 @@ const AboutUs = ({navigation}) => {
   const getCatagories = async () => {
     setLoader(true);
     try {
-      let response = await axios.get('http://54.226.77.97:81/view/categories/');
+      let response = await axios.get('https://stagingapi.pennymead.com/view/categories/');
       setContextCategories(response?.data?.data);
       setLoader(false);
     } catch (error) {

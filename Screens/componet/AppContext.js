@@ -9,8 +9,10 @@ export const CategoriesContext = createContext();
 
 export const CategoriesProvider = ({children}) => {
   const [contextCategories, setContextCategories] = useState([]);
+  console.log(contextCategories);
   const [selectedSubCatagories, setSelectedSubCatagories] = useState([]);
   const [cartItems, setCartItems] = useState([]);
+  console.log("🚀 ~ CategoriesProvider ~ cartItems:", cartItems)
   const [viewCollectible, setViewCollectible] = useState([]);
 
   // trigger and get search by data

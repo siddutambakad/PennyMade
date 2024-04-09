@@ -44,12 +44,14 @@ const CartScreen = ({navigation}) => {
     viewCollectible,
     getSubCatagories,
   } = useContext(CategoriesContext);
+    console.log("🚀 ~ CartScreen ~ cartItems:", cartItems)
   LogBox.ignoreAllLogs();
   const [isOpen, setIsOpen] = useState(false);
   const [loader, setLoader] = useState(false);
   const [selectedOption1, setSelectedOption1] = useState(false);
   const [selectedOption2, setSelectedOption2] = useState(false);
   const [viewBasket, setViewBasket] = useState([]);
+  console.log("🚀 ~ CartScreen ~ viewBasket:", viewBasket)
   const [countriesList, setCountriesList] = useState([]);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -204,7 +206,7 @@ const CartScreen = ({navigation}) => {
 
   const checkEmailRegistration = () => {
     setLoader(true);
-    const apiurl = `http://54.226.77.97:81/view/checkuser/${userDetails.email}/`;
+    const apiurl = `https://stagingapi.pennymead.com/view/checkuser/${userDetails.email}/`;
 
     // Send a GET request to the API URL using axios and handle the response and errors.
     axios
@@ -263,7 +265,7 @@ const CartScreen = ({navigation}) => {
       return;
     }
     // Define the API endpoint and request body
-    const apiUrl = 'http://54.226.77.97:81/view/viewbasket/';
+    const apiUrl = 'https://stagingapi.pennymead.com/view/viewbasket/';
     const requestBody = {
       basketItems: Sysid, // Replace with the sysid you want to send
     };
@@ -442,7 +444,7 @@ const CartScreen = ({navigation}) => {
     setLoader(true);
     try {
       const response = await axios.post(
-        `http://54.226.77.97:81/view/orderplacing/`,
+        `https://stagingapi.pennymead.com/view/orderplacing/`,
         apiData,
       );
       const res_ponse = response.data;

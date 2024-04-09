@@ -137,7 +137,7 @@ const TrackOrder = ({navigation}) => {
 
   const trackByEmail = () => {
     setLoader(true);
-    const apiUrl = `http://54.226.77.97:81/view/getOrderdetailbyEmail/${email}/`;
+    const apiUrl = `https://stagingapi.pennymead.com/view/getOrderdetailbyEmail/${email}/`;
 
     // Send a GET request to the API URL using axios and handle the response and errors
     axios

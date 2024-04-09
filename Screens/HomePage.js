@@ -79,7 +79,7 @@ const HomePage = () => {
     setLoader(true);
     try {
       // let response = await axios.get(APIS.getCategories);
-      let response = await axios.get('http://54.226.77.97:81/view/categories/');
+      let response = await axios.get('https://stagingapi.pennymead.com/view/categories/');
       setContextCategories(response?.data?.data);
       setLoader(false);
     } catch (error) {
@@ -108,6 +108,7 @@ const HomePage = () => {
 
   // when user click any one category
   const getSubCategoryData = async item => {
+    console.log("---->>>>",item)
     setLoader(true); // Set loading to true when the function starts
 
     try {

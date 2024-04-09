@@ -1,4 +1,4 @@
-const BASE_URL = 'http://54.226.77.97:81';
+const BASE_URL = 'https://stagingapi.pennymead.com';
 
 export const APIS = {
   getCategories: `${BASE_URL}/view/categories/`,

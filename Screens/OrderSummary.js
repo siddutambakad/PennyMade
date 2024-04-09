@@ -115,7 +115,7 @@ const OrderSummary = ({route, navigation}) => {
         txcode: venderTxCode(),
         trantime: handleClickTime(),
       };
-      const apiUrl = `http://54.226.77.97:81/view/insertTranscation/`;
+      const apiUrl = `https://stagingapi.pennymead.com/view/insertTranscation/`;
       const _res = await axios.post(apiUrl, requestBody);
       console.log('inserted trans', _res.data);
       setDataEncode(encodedCredential);
@@ -149,11 +149,11 @@ const OrderSummary = ({route, navigation}) => {
           txcode: uniqueId,
         };
         console.log('====>', requestBody);
-        const apiUrl = `http://54.226.77.97:81/view/updateTranscation/`;
+        const apiUrl = `https://stagingapi.pennymead.com/view/updateTranscation/`;
         const res = await axios.post(apiUrl, requestBody);
         console.log('upDateTheTransaction', res.data.message);
         if (res.data.message === 'Data updated Successfully') {
-          const upDatePayApi = `http://54.226.77.97:81/view/paymentresult/`;
+          const upDatePayApi = `https://stagingapi.pennymead.com/view/paymentresult/`;
           const requestBody = {
             encode_data: dataEncode,
           };
