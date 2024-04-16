@@ -44,14 +44,14 @@ const CartScreen = ({navigation}) => {
     viewCollectible,
     getSubCatagories,
   } = useContext(CategoriesContext);
-    console.log("🚀 ~ CartScreen ~ cartItems:", cartItems)
+    // console.log("🚀 ~ CartScreen ~ cartItems:", cartItems)
   LogBox.ignoreAllLogs();
   const [isOpen, setIsOpen] = useState(false);
   const [loader, setLoader] = useState(false);
   const [selectedOption1, setSelectedOption1] = useState(false);
   const [selectedOption2, setSelectedOption2] = useState(false);
   const [viewBasket, setViewBasket] = useState([]);
-  console.log("🚀 ~ CartScreen ~ viewBasket:", viewBasket)
+  // console.log("🚀 ~ CartScreen ~ viewBasket:", viewBasket)
   const [countriesList, setCountriesList] = useState([]);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
@@ -432,6 +432,7 @@ const CartScreen = ({navigation}) => {
       county: userDetails.country,
       postcode: userDetails.postal,
       country: selectedCountry,
+      town: userDetails.country,
       payment: selectedPayment, // You can change this if needed
       message: 'buyer message', // You can change this if needed
       promotional_emails: 0, // You can change this if needed
@@ -448,6 +449,7 @@ const CartScreen = ({navigation}) => {
         apiData,
       );
       const res_ponse = response.data;
+      console.log("🚀 ~ orderPlacingApi ~ res_ponse:", res_ponse)
       const email = res_ponse.customerEmailid;
       const orderno = res_ponse.ordernumber;
       navigation.navigate('OrderSummary', {
