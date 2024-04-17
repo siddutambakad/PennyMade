@@ -40,6 +40,7 @@ const OrderSummary = ({route, navigation}) => {
   const [loader, setLoader] = useState(true);
   const [totalAmount, setTotalAmount] = useState([]);
   const [orderDetail, setOrderDetail] = useState([]);
+  console.log("🚀 ~ OrderSummary ~ orderDetail:", orderDetail)
   const [showModal, setShowModal] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [merchantSessionKey, setMerchantSessionKey] = useState(null);
@@ -642,7 +643,7 @@ const OrderSummary = ({route, navigation}) => {
               </Text>
             </>
           )}
-          {details.orderno && showPayNowButton && (
+          {details.orderNo && showPayNowButton && (
             <TouchableOpacity
               style={styles.PaynowButton}
               onPress={() => {

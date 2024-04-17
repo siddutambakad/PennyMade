@@ -346,8 +346,12 @@ const TrackOrder = ({navigation}) => {
               style={styles.PaynowButton}
               onPress={() => {
                 navigation.navigate('OrderSummary', {
-                  orderno: item.orderno,
-                  email: email,
+                  // orderno: item.orderno,
+                  // email: email,
+                  details: {
+                    custmerEmail: email, 
+                    orderNo: item.orderno
+                  },
                 });
               }}>
               <Text style={styles.paynowText}>Pay now</Text>
